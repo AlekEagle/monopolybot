@@ -1,0 +1,9 @@
+{
+    "users": [{
+        "id": "222882552472535041",
+        "adminOwner": true
+    }, {
+        "id": "1",
+        "adminOwner": false
+    }]
+}
