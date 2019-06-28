@@ -796,7 +796,7 @@ class Game {
     start() {
         this.active = true;
         this.client.off('messageReactionAdd', this.reactionAddStart);
-        this.message.removeReactions().then(() => this.message.addReaction('🔚').then(() => this.message.addReaction('🎲').then(() => this.message.addReaction('📧').then(() => this.message.addReaction('bankrupt:593118614031171586').then(() => this.message.addReaction('💳'))))));
+        this.message.removeReactions().then(() => this.message.addReaction('🔚').then(() => this.message.addReaction('🎲').then(() => this.message.addReaction('📧').then(() => this.message.addReaction('bankrupt:593118614031171586').then(() => this.message.addReaction('💳').then(() => this.message.addReaction('ℹ')))))));
         this.message.edit({
             content: `<@${this.players[this.currentPlayer].id}>`,
             embed: {
@@ -833,15 +833,46 @@ class Game {
                         });
                         break;
                     case '🎲':
-                        if (this.players[this.currentPlayer].id === reactor.id) {
-                            this.movePlayer();
+                        if (this.players[this.currentPlayer].id === reactor.id && !this.otherAction) {
+                            if (!this.players[this.currentPlayer].bankruptcyMode) {
+                                this.movePlayer();
+                            }else {
+                                let messageDescription = this.channel.messages.get(this.message.id).embeds[0].description;
+                                this.message.edit({
+                                    embed: {
+                                        title: 'Monopoly',
+                                        color: parseInt('ffff00', 16),
+                                        description: 'You can\'t move when you are in possible bankruptcy'
+                                    }
+                                }).then(() => {
+                                    setTimeout(() => {
+                                        this.message.edit({
+                                            embed: {
+                                                title: 'Monopoly',
+                                                color: parseInt('36393E', 16),
+                                                description: messageDescription,
+                                                fields: [{
+                                                    name: 'Players',
+                                                    value: `Up now: <@${this.players[this.currentPlayer].id}>\nUp next: <@${this.players[this.nextPlayer].id}>`
+                                                },
+                                                {
+                                                    name: `${this.players[this.currentPlayer].username}#${this.players[this.currentPlayer].discriminator}'s Money`,
+                                                    value: this.players[this.currentPlayer].money
+                                                }]
+                                            }
+                                        });
+                                    }, 8000);
+                                });
+                            }
                         }
                         break;
                     case '📧':
-
+                        if (this.players[this.currentPlayer].id === reactor.id && !this.otherAction) {
+                            this.handleTrading()
+                        }
                         break;
                     case 'bankrupt':
-                        if (this.players[this.currentPlayer].id === reactor.id) {
+                        if (this.players[this.currentPlayer].id === reactor.id && !this.otherAction) {
                             if (!this.players[this.currentPlayer].bankruptcyMode) {
                                 let messageDescription = this.channel.messages.get(this.message.id).embeds[0].description;
                                 this.message.edit({
@@ -871,6 +902,55 @@ class Game {
                                 });
                             }
                         }
+                    break;
+                    case 'ℹ':
+                        if (this.players.filter(p => p.id === reactor.id)[0]) {
+                            let thisPlayer = this.players.filter(p => p.id === reactor.id)[0]
+                            reactor.getDMChannel().then(chnl => {
+                                chnl.createMessage({
+                                    embed: {
+                                        color: parseInt('00ff00', 16),
+                                        title: 'Monopoly Player Stats',
+                                        fields: [
+                                            {
+                                                name: 'Money',
+                                                value: thisPlayer.money,
+                                                inline: true
+                                            },
+                                            {
+                                                name: 'Properties Owned',
+                                                value: this.map.filter(m => m.ownedBy === thisPlayer.id).length.toString(),
+                                                inline: true
+                                            },
+                                            {
+                                                name: 'Properties Mortgaged',
+                                                value: this.map.filter(m => m.ownedBy === thisPlayer.id && m.mortgaged).length.toString(),
+                                                inline: true
+                                            },
+                                            {
+                                                name: 'List of Properties Owned',
+                                                value: this.map.filter(m => m.ownedBy === thisPlayer.id).map(m => m.name).join('\n') === '' ? 'None' : this.map.filter(m => m.ownedBy === thisPlayer.id).map(m => m.name).join('\n')
+                                            },
+                                            {
+                                                name: 'List of Properties Mortgaged',
+                                                value: this.map.filter(m => m.ownedBy === thisPlayer.id && m.mortgaged).map(m => m.name).join('\n') === '' ? 'None' : this.map.filter(m => m.ownedBy === thisPlayer.id && m.mortgaged).map(m => m.name).join('\n')
+                                            }
+                                        ]
+                                    }
+                                });
+                            });
+                        }else {
+                            reactor.getDMChannel().then(chnl => {
+                                chnl.createMessage({
+                                    embed: {
+                                        color: parseInt('ff0000', 16),
+                                        title: 'Error',
+                                        description: 'You can\'t get player stats for yourself if you aren\'t in the game!'
+                                    }
+                                });
+                            });
+                        }
+                    break;
                 }
                 this.message.removeReaction(emoji.name === 'bankrupt' ? `${emoji.name}:${emoji.id}` : emoji.name, reactor.id);
             }
@@ -880,7 +960,7 @@ class Game {
 
     returnToReadyState(readyStateMessage) {
         this.otherAction = false;
-        this.message.addReaction('🔚').then(() => this.message.addReaction('🎲').then(() => this.message.addReaction('📧').then(() => this.message.addReaction('bankrupt:593118614031171586').then(() => this.message.addReaction('💳')))));
+        this.message.addReaction('🔚').then(() => this.message.addReaction('🎲').then(() => this.message.addReaction('📧').then(() => this.message.addReaction('bankrupt:593118614031171586').then(() => this.message.addReaction('💳').then(() => this.message.addReaction('ℹ'))))));
         this.message.edit({
             content: `<@${this.players[this.currentPlayer].id}>`,
             embed: {
@@ -916,23 +996,61 @@ class Game {
             die1 = moveTo / 2;
             die2 = moveTo / 2;
         }else {
-            die1 = random(1, 6);
-            die2 = random(1, 6);
-        }
-        if (this.players[this.currentPlayer].currentLocation !== 'jail' && !this.players[this.currentPlayer].bankruptcyMode) {
-            this.players[this.currentPlayer].currentLocation ++
-            for (let i = 0; i <= (die1 + die2); i ++) {
-                if (i < (die1 + die2)) {
-                    if (this.map[this.players[this.currentPlayer].currentLocation].type === 'special') this.handleSpecialMapLocation(this.map[this.players[this.currentPlayer].currentLocation], 'pass', die1, die2);
-                }else {
-                    this.players[this.currentPlayer].currentLocation --
-                    if (this.map[this.players[this.currentPlayer].currentLocation].type === 'special') this.handleSpecialMapLocation(this.map[this.players[this.currentPlayer].currentLocation], 'land', die1, die2);
-                    else this.handleMapLocation(this.map[this.players[this.currentPlayer].currentLocation], die1, die2);
+            this.message.edit({
+                content: `<@${this.players[this.currentPlayer].id}>`,
+                embed: {
+                    title: 'Monopoly',
+                    color: parseInt('36393E', 16),
+                    description: 'Rolling the dice..',
+                    fields: [{
+                        name: `${this.players[this.currentPlayer].username}#${this.players[this.currentPlayer].discriminator}'s Money`,
+                        value: this.players[this.currentPlayer].money
+                    }]
                 }
-                if (i < (die1 + die2)) {
-                    if (++ this.players[this.currentPlayer].currentLocation === this.map.length) this.players[this.currentPlayer].currentLocation = 0;
-                }
-            }
+            }).then(() => {
+                die1 = random(1, 6);
+                die2 = random(1, 6);
+                setTimeout(() => {
+                    this.message.edit({
+                        content: `<@${this.players[this.currentPlayer].id}>`,
+                        embed: {
+                            title: 'Monopoly',
+                            color: parseInt('36393E', 16),
+                            description: 'Moving..',
+                            fields: [{
+                                name: `${this.players[this.currentPlayer].username}#${this.players[this.currentPlayer].discriminator}'s Money`,
+                                value: this.players[this.currentPlayer].money
+                            },
+                            {
+                                name: 'Die 1',
+                                value: die1
+                            },
+                            {
+                                name: 'Die 2',
+                                value: die2
+                            }]
+                        }
+                    }).then(() => {
+                        setTimeout(() => {
+                            if (this.players[this.currentPlayer].currentLocation !== 'jail' && !this.players[this.currentPlayer].bankruptcyMode) {
+                                this.players[this.currentPlayer].currentLocation ++
+                                for (let i = 0; i <= (die1 + die2); i ++) {
+                                    if (i < (die1 + die2)) {
+                                        if (this.map[this.players[this.currentPlayer].currentLocation].type === 'special') this.handleSpecialMapLocation(this.map[this.players[this.currentPlayer].currentLocation], 'pass', die1, die2);
+                                    }else {
+                                        this.players[this.currentPlayer].currentLocation --
+                                        if (this.map[this.players[this.currentPlayer].currentLocation].type === 'special') this.handleSpecialMapLocation(this.map[this.players[this.currentPlayer].currentLocation], 'land', die1, die2);
+                                        else this.handleMapLocation(this.map[this.players[this.currentPlayer].currentLocation], die1, die2);
+                                    }
+                                    if (i < (die1 + die2)) {
+                                        if (++ this.players[this.currentPlayer].currentLocation === this.map.length) this.players[this.currentPlayer].currentLocation = 0;
+                                    }
+                                }
+                            }
+                        }, 2000);
+                    });
+                }, 2000);
+            });
         }
     }
 
@@ -942,8 +1060,15 @@ class Game {
                 this.players[this.currentPlayer].money += location.actions.pass
             };
         }else if (type === 'land') {
-            if (typeof location.actions.land === 'number') this.players[this.currentPlayer].money += location.actions.land;
-            else if (typeof location.actions.land === 'string') {
+            if (typeof location.actions.land === 'number') {
+                this.players[this.currentPlayer].money += location.actions.land;
+                if(die1 === die2) {
+                    this.returnToReadyState(`{{currentuser}} landed on ${location.name} and you ${location.actions.land < 0 ? 'lost' : 'gained'} $${location.actions.land}!\nThey also rolled a double, so they go again!`);
+                }else {
+                    this.advancePlayer();
+                    this.returnToReadyState(`{{previoususer}} landed on ${location.name} and you ${location.actions.land < 0 ? 'lost' : 'gained'} $${location.actions.land}!\nIt is now {{currentuser}}\'s turn!`);
+                }
+            }else if (typeof location.actions.land === 'string') {
                 switch(location.actions.land) {
                     case 'comchest':
                         let comchest = communityChest[Math.round(Math.random() * communityChest.length)]
@@ -952,29 +1077,288 @@ class Game {
                     case 'chance':
                         let chancecrd = chance[Math.round(Math.random() * chance.length)]
                         this.handleCards(chancecrd, 'Chance Pile', die1, die2);
+                    break;
+                    case 'tojail':
+                        this.players[this.currentPlayer].currentLocation = 'jail';
+                        this.advancePlayer();
+                        this.returnToReadyState(`{{previoususer}} landed on the "Go to jail space"! They are now in jail!\nIt is now {{currentuser}}\'s turn!`);
+                    default:
+                        if(die1 === die2) {
+                            this.returnToReadyState(`{{currentuser}} landed on ${location.name} and you ${location.actions.land < 0 ? 'lost' : 'gained'} $${location.actions.land}!\nThey also rolled a double, so they go again!`);
+                        }else {
+                            this.advancePlayer();
+                            this.returnToReadyState(`{{previoususer}} landed on ${location.name} and you ${location.actions.land < 0 ? 'lost' : 'gained'} $${location.actions.land}!\nIt is now {{currentuser}}\'s turn!`);
+                        }
                 }
                 return;
+            }else {
+                if(die1 === die2) {
+                    this.returnToReadyState(`{{currentuser}} landed on ${location.name} and you ${location.actions.land < 0 ? 'lost' : 'gained'} $${location.actions.land}!\nThey also rolled a double, so they go again!`);
+                }else {
+                    this.advancePlayer();
+                    this.returnToReadyState(`{{previoususer}} landed on ${location.name} and you ${location.actions.land < 0 ? 'lost' : 'gained'} $${location.actions.land}!\nIt is now {{currentuser}}\'s turn!`);
+                }
             }
         }
     }
 
     handleMapLocation(location, die1, die2) {
-        switch(location.type) {
-            case 'normal':
-                if (location.ownedBy) {
-                    this.handleRent(location, die1, die2);
+        if (location.ownedBy && location.ownedBy === this.players[this.currentPlayer].id) {
+            if(die1 === die2) {
+                this.returnToReadyState(`{{currentuser}} landed on their own property ${location.name}!\nThey also rolled a double, so they go again!`);
+            }else {
+                this.advancePlayer();
+                this.returnToReadyState(`{{previoususer}} landed on their own property ${location.name}!\nIt is now {{currentuser}}\'s turn!`);
+            }
+        }else if (location.ownedBy && location.ownedBy !== this.players[this.currentPlayer].id) {
+            this.handleRent(location, die1, die2);
+        }else if (!location.ownedBy) {
+            this.handlePurchase(location, die1, die2);
+        }
+    }
+
+    handlePurchase(property, die1, die2) {
+        this.otherAction = true;
+        this.message.edit({
+            embed: {
+                title: 'Monopoly',
+                color: parseInt('36393E', 16),
+                description: `You landed on ${property.name}, which is not owned. Would you like to purchase it for $${property.price}? Not purchasing it will begin an auction for it.`,
+                fields: [{
+                    name: `${this.players[this.currentPlayer].username}#${this.players[this.currentPlayer].discriminator}'s Money`,
+                    value: this.players[this.currentPlayer].money
+                },
+                {
+                    name: 'Die 1',
+                    value: die1
+                },
+                {
+                    name: 'Die 2',
+                    value: die2
+                }]
+            }
+        })
+        this.message.addReaction('✅').then(() => this.message.addReaction('❎'));
+        this.reactionAddPurchase = (mes, emoji, user) => {
+            let reactor = mes.channel.guild.members.get(user).user;
+            if (mes.id === this.message.id && !reactor.bot && reactor.id === this.players[this.currentPlayer].id) {
+                switch(emoji.name) {
+                    case '✅':
+                        this.map[this.map.indexOf(property)].ownedBy = this.players[this.currentPlayer].id;
+                        this.players[this.currentPlayer].money -= property.price;
+                        if(die1 === die2) {
+                            this.client.off('messageReactionAdd', this.reactionAddPurchase);
+                            this.message.removeReaction('✅').then(() => this.message.removeReaction('❎'));
+                            this.returnToReadyState(`{{currentuser}} landed on ${property.name} and bought it for $${property.price}!\nThey also rolled a double, so they go again!`);
+                        }else {
+                            this.advancePlayer();
+                            this.client.off('messageReactionAdd', this.reactionAddPurchase);
+                            this.message.removeReaction('✅').then(() => this.message.removeReaction('❎'));
+                            this.returnToReadyState(`{{previoususer}} landed on ${property.name} and bought it for $${property.price}!\nIt is now {{currentuser}}\'s turn!`);
+                        }
+                    break;
+                    case '❎':
+                        this.client.off('messageReactionAdd', this.reactionAddPurchase);
+                        this.message.removeReaction('✅').then(() => this.message.removeReaction('❎'));
+                        let array = [property];
+                        this.handleAuction(array, 'user', die1, die2);
+                    break;
                 }
-            break;
-            case 'railroad':
-                if (location.ownedBy) {
-                    this.handleRent(location, die1, die2);
+                this.message.removeReaction(emoji.name === 'bankrupt' ? `${emoji.name}:${emoji.id}` : emoji.name, reactor.id);
+            }
+        }
+        this.client.on('messageReactionAdd', this.reactionAddPurchase);
+    }
+
+    handleTrading() {
+        
+    }
+
+    handleBankruptcy() {
+
+    }
+
+    handleBuyingHousing() {
+
+    }
+
+    handleMortgaging() {
+
+    }
+
+    handleAuction(properties, auctionType, die1, die2) {
+        this.message.addReaction('🆙');
+        for (let i = 0; i <= properties.length; i ++) {
+            let p = properties[0]
+            if (i < properties.length) {
+                let highestBidder, currentPrice, timeout1, timeout2, timeout3;
+                currentPrice = p.price - 100;
+                this.message.edit({
+                    embed: {
+                        color: parseInt('36393E', 16),
+                        title: 'Monopoly',
+                        description: 'We got a couple of properties that are up for auction. To increase your bidding amount, hit the 🆙 reaction.',
+                        fields: [
+                            {
+                                name: 'Property up now',
+                                value: p.name,
+                                inline: true
+                            },
+                            {
+                                name: 'Current price',
+                                value: currentPrice + 100,
+                                inline: true
+                            },
+                            {
+                                name: 'Current Highest Bidder',
+                                value: highestBidder ? `<@${highestBidder}>` : 'None',
+                                inline: true
+                            }
+                        ]
+                    }
+                })
+                this.reactionAddAuction = (mes, emoji, user) => {
+                    let reactor = mes.channel.guild.members.get(user).user;
+                    if (this.players.filter(l => l.id === reactor.id && (auctionType === 'user' ? l.id !== this.players[this.currentPlayer].id : true))[0]) {
+                        switch(emoji.name) {
+                            case '🆙':
+                                clearTimeout(timeout1);
+                                clearTimeout(timeout2);
+                                clearTimeout(timeout3);
+                                timeout1 = null;
+                                timeout2 = null;
+                                timeout3 = null;
+                                highestBidder = reactor.id
+                                currentPrice += 100
+                                this.message.edit({
+                                    embed: {
+                                        color: parseInt('36393E', 16),
+                                        title: 'Monopoly',
+                                        description: `**__<@${reactor.id}>__** just ${currentPrice === p.price ? 'started the bidding off!' : 'raised the bid price another $100!'}`,
+                                        fields: [
+                                            {
+                                                name: 'Property up now',
+                                                value: p.name,
+                                                inline: true
+                                            },
+                                            {
+                                                name: 'Current price',
+                                                value: currentPrice,
+                                                inline: true
+                                            },
+                                            {
+                                                name: 'Current Highest Bidder',
+                                                value: highestBidder ? `<@${highestBidder}>` : 'None',
+                                                inline: true
+                                            }
+                                        ]
+                                    }
+                                }).then(() => {
+                                    timeout1 = setTimeout(() => {
+                                        this.message.edit({
+                                            embed: {
+                                                color: parseInt('36393E', 16),
+                                                title: 'Monopoly',
+                                                description: 'Going once..',
+                                                fields: [
+                                                    {
+                                                        name: 'Property up now',
+                                                        value: p.name,
+                                                        inline: true
+                                                    },
+                                                    {
+                                                        name: 'Current price',
+                                                        value: currentPrice,
+                                                        inline: true
+                                                    },
+                                                    {
+                                                        name: 'Current Highest Bidder',
+                                                        value: highestBidder ? `<@${highestBidder}>` : 'None',
+                                                        inline: true
+                                                    }
+                                                ]
+                                            }
+                                        }).then(() => {
+                                            timeout2 = setTimeout(() => {
+                                                this.message.edit({
+                                                    embed: {
+                                                        color: parseInt('36393E', 16),
+                                                        title: 'Monopoly',
+                                                        description: 'Going twice..',
+                                                        fields: [
+                                                            {
+                                                                name: 'Property up now',
+                                                                value: p.name,
+                                                                inline: true
+                                                            },
+                                                            {
+                                                                name: 'Current price',
+                                                                value: currentPrice,
+                                                                inline: true
+                                                            },
+                                                            {
+                                                                name: 'Current Highest Bidder',
+                                                                value: highestBidder ? `<@${highestBidder}>` : 'None',
+                                                                inline: true
+                                                            }
+                                                        ]
+                                                    }
+                                                }).then(() => {
+                                                    timeout3 = setTimeout(() => {
+                                                        this.message.edit({
+                                                            embed: {
+                                                                color: parseInt('36393E', 16),
+                                                                title: 'Monopoly',
+                                                                description: `Sold! To <@${highestBidder}>!`,
+                                                                fields: [
+                                                                    {
+                                                                        name: 'Property up now',
+                                                                        value: p.name,
+                                                                        inline: true
+                                                                    },
+                                                                    {
+                                                                        name: 'Current price',
+                                                                        value: currentPrice,
+                                                                        inline: true
+                                                                    },
+                                                                    {
+                                                                        name: 'Current Highest Bidder',
+                                                                        value: highestBidder ? `<@${highestBidder}>` : 'None',
+                                                                        inline: true
+                                                                    }
+                                                                ]
+                                                            }
+                                                        });
+                                                        this.map[this.map.indexOf(p)].ownedBy = highestBidder;
+                                                        this.client.off('messageReactionAdd', this.reactionAddAuction);
+                                                        if (auctionType === 'user') {
+                                                            this.players[this.currentPlayer].money += currentPrice;
+                                                            this.players.filter(e => e.id === reactor.id)[0].money -= currentPrice;
+                                                        }else {
+                                                            this.players.filter(e => e.id === reactor.id)[0].money -= currentPrice;
+                                                        }
+                                                        if (i === (properties.length - 1)) {
+                                                            if(auctionType === 'user') {
+                                                                if(die1 === die2) {
+                                                                    this.returnToReadyState(`{{currentuser}} started an auction and sold some properties!\nThey also rolled a double, so they go again!`);
+                                                                }else {
+                                                                    this.advancePlayer();
+                                                                    this.returnToReadyState(`{{previoususer}} started an auction and sold some properties!\nIt is now {{currentuser}}\'s turn!`);
+                                                                }
+                                                            }
+                                                            this.message.removeReaction('🆙');
+                                                        }
+                                                    }, 2000);
+                                                });
+                                            }, 2000);
+                                        });
+                                    }, 2000);
+                                });
+                        }
+                    }
                 }
-            break;
-            case 'uility':
-                if (location.ownedBy) {
-                    this.handleRent(location, die1, die2);
-                }
-            break;
+                this.client.on('messageReactionAdd', this.reactionAddAuction);
+            }
         }
     }
 
@@ -982,7 +1366,7 @@ class Game {
         switch(card.special) {
             case 'perplayer':
                 this.players.forEach(p => {
-                    if (p.id === this.players[this.currentPlayer]) return;
+                    if (p.id === this.players[this.currentPlayer].id) return;
                     else {
                         p.money += card.money;
                         this.players[this.currentPlayer].money -= card.money;
@@ -1011,6 +1395,7 @@ class Game {
             break;
             case 'togo':
                 this.players[this.currentPlayer].currentLocation = 0;
+                this.players[this.currentPlayer].money += 200;
                 if(die1 === die2) {
                     this.returnToReadyState(`{{currentuser}} pulled from the ${deck} and recieved a "${card.name}" card!\nThey also rolled a double, so they go again!`);
                 }else {
@@ -1030,9 +1415,7 @@ class Game {
                 }
             break;
             case '25house100hotel':
-                houses = this.map.filter(p => p.ownedBy === this.players[this.currentPlayer].id && p.houses && p.houses < 5).map(p => p.houses).reduce((a, b) => a + b, 0);
-                hotels = this.map.filter(p => p.ownedBy === this.players[this.currentPlayer].id && p.houses && p.houses === 5).map(p => p.houses).reduce((a, b) => a + b, 0);
-                this.players[this.currentPlayer].money -= ((houses * 25) + (hotels * 100));
+                this.players[this.currentPlayer].money -= ((this.map.filter(p => p.ownedBy === this.players[this.currentPlayer].id && p.houses && p.houses < 5).map(p => p.houses).reduce((a, b) => a + b, 0) * 25) + (this.map.filter(p => p.ownedBy === this.players[this.currentPlayer].id && p.houses && p.houses === 5).map(p => p.houses).reduce((a, b) => a + b, 0) * 100));
                 if(die1 === die2) {
                     this.returnToReadyState(`{{currentuser}} pulled from the ${deck} and recieved a "${card.name}" card!\nThey also rolled a double, so they go again!`);
                 }else {
@@ -1083,15 +1466,16 @@ class Game {
                 if (this.players[this.currentPlayer].money < die1 * 10) {
                     this.handleBankruptcy();
                 }else {
-                    this.players.filter(p => p.id === property.ownedBy)[0].money += die * 10;
+                    this.players.filter(p => p.id === this.map[this.players[this.currentPlayer].currentLocation].ownedBy)[0].money += die * 10;
                     this.players[this.currentPlayer].money -= die1 * 10;
+                    if(die1 === die2) {
+                        this.returnToReadyState(`{{currentuser}} pulled from the ${deck} and recieved a "${card.name}" card!\nThey also rolled a double, so they go again!`);
+                    }else {
+                        this.advancePlayer();
+                        this.returnToReadyState(`{{previoususer}} pulled from the ${deck} and recieved a "${card.name}" card!\nIt is now {{currentuser}}\'s turn!`);
+                    }
                 }
-                if(die1 === die2) {
-                    this.returnToReadyState(`{{currentuser}} pulled from the ${deck} and recieved a "${card.name}" card!\nThey also rolled a double, so they go again!`);
-                }else {
-                    this.advancePlayer();
-                    this.returnToReadyState(`{{previoususer}} pulled from the ${deck} and recieved a "${card.name}" card!\nIt is now {{currentuser}}\'s turn!`);
-                }
+                
             break;
             case 'toreading':
                 if (this.map.indexOf(this.map.filter(p => p.name === 'Reading Railroad')[0]) < this.players[this.currentPlayer].currentLocation) this.movePlayer(this.map.length - this.players[this.currentPlayer].currentLocation + this.map.indexOf(this.map.filter(p => p.name === 'Reading Railroad')[0]));
@@ -1161,10 +1545,18 @@ class Game {
                     embed: {
                         title: 'Monopoly',
                         color: parseInt('36393E', 16),
-                        description: `You landed on a utility owned by another player that is not mortgaged, to continue, roll the die.`,
+                        description: `You landed on ${property.name}, which owned by <@${property.ownedBy}> and not mortgaged, to continue, roll the die.`,
                         fields: [{
                             name: 'Your money',
                             value: `Up now: <@${this.players[this.currentPlayer].id}>\nUp next: <@${this.players[this.nextPlayer].id}>`
+                        },
+                        {
+                            name: 'Die 1',
+                            value: die1
+                        },
+                        {
+                            name: 'Die 2',
+                            value: die2
                         }]
                     }
                 })
@@ -1186,6 +1578,7 @@ class Game {
                         }
                     }
                 }
+                this.client.on('messageReactionAdd', this.reactionAddUtility);
         }
         return;
     }
@@ -1279,6 +1672,10 @@ class Game {
                             {
                                 name: 'Filing for Bankruptcy',
                                 value: 'When it is your turn to move, if you land on a location that you must pay rent for, but don\'t have enough money to pay for the rent specified, you are able to go and sell your houses and hotels on locations you own, however, if you do not have enough money you may file for bankruptcy with the <:bankrupt:593118614031171586> emoji. Upon filing for bankruptcy, if you owe the bank, you give up all items of value to the bank and retire from the game, the bank will then hold an auction auctioning all of your properties away. If you owe another player, you have of value to the other player, and retire from the game.'
+                            },
+                            {
+                                name: 'Check your In-Game Stats',
+                                value: 'At anytime, you are allowed to react to the message with ℹ to Get a DM with your stats in-game.'
                             },
                             {
                                 name: 'Get ready!',
