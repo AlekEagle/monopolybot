@@ -1719,6 +1719,10 @@ class Game {
                                                             this.bankruptPlayers.push(this.players[this.currentPlayer])
                                                             this.advancePlayer();
                                                             delete this.players[this.previousPlayer];
+                                                            if (this.players.length === 1) {
+                                                                this.returnToReadyState('{{currentplayer}} has won!');
+                                                                this.end();
+                                                            }
                                                         }
                                                     }, 2000);
                                                 });
