@@ -998,13 +998,7 @@ class Game {
             embed: {
                 title: 'Monopoly',
                 color: parseInt('36393E', 16),
-                description: `${readyStateMessage.replace(/{{previoususer}}/g, ` < @$ {
-                    this.players[this.previousPlayer].id
-                } > `).replace(/{{currentuser}}/g, ` < @$ {
-                    this.players[this.currentPlayer].id
-                } > `).replace(/{{nextuser}}/g, ` < @$ {
-                    this.players[this.nextPlayer].id
-                } > `)}${this.players[this.currentPlayer].currentLocation === 'jail' ? `\n<@${this.players[this.currentPlayer].id}> Is currently in jail! To get out of jail you must roll doubles!` : ''}`,
+                description: `${readyStateMessage.replace(/{{previoususer}}/g, `<@${this.players[this.previousPlayer].id}>`).replace(/{{currentuser}}/g, `<@${this.players[this.currentPlayer].id}>`).replace(/{{nextuser}}/g, `<@${this.players[this.nextPlayer].id}>`)}${this.players[this.currentPlayer].currentLocation === 'jail' ? `\n<@${this.players[this.currentPlayer].id}> Is currently in jail! To get out of jail you must roll doubles!` : ''}`,
                 fields: [{
                         name: 'Players',
                         value: `Up now: <@${this.players[this.currentPlayer].id}>\nUp next: <@${this.players[this.nextPlayer].id}>`
