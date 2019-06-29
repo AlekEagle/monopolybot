@@ -3,7 +3,7 @@
 const logic = require('../functions/gameLogic');
 
 module.exports = {
-    name: 'test',
+    name: 'play',
 
     exec: (client, msg, args) => {
         new logic.Game(client, msg);
