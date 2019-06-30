@@ -65,7 +65,8 @@ const communityChest = [{
     money: 45,
     special: null
 }];
-const chance = [{
+const chance = [
+    {
     name: 'Go to Jail, Directly to Jail',
     money: 0,
     special: 'tojail'
@@ -125,7 +126,8 @@ const chance = [{
     name: 'Advance to St. Charles Place',
     money: 0,
     special: 'tocharles'
-}];
+}
+];
 const random = require('./randomNumFromRange');
 const u_wut_m8 = require('../.auth.json');
 const Logger = require('./logger');
@@ -682,6 +684,7 @@ class Game {
         this.bankruptPlayers = [];
         this.active = false;
         this.otherAction = false;
+        this.moving = false;
         message.channel.createMessage({
             embed: {
                 title: 'Let\'s play Monopoly!',
@@ -798,10 +801,14 @@ class Game {
         });
     }
 
+    defaultReactions() {
+        this.message.addReaction('🔚').then(() => this.message.addReaction('🎲').then(() => this.message.addReaction('📧').then(() => this.message.addReaction('bankrupt:593118614031171586').then(() => this.message.addReaction('💳').then(() => this.message.addReaction('ℹ').then(() => this.message.addReaction('🏦')))))));
+    }
+
     start() {
         this.active = true;
         this.client.off('messageReactionAdd', this.reactionAddStart);
-        this.message.removeReactions().then(() => this.message.addReaction('🔚').then(() => this.message.addReaction('🎲').then(() => this.message.addReaction('📧').then(() => this.message.addReaction('bankrupt:593118614031171586').then(() => this.message.addReaction('💳').then(() => this.message.addReaction('ℹ').then(() => this.message.addReaction('🏦'))))))));
+        this.message.removeReactions().then(() => this.defaultReactions());
         this.message.edit({
             content: `<@${this.players[this.currentPlayer].id}>`,
             embed: {
@@ -839,18 +846,11 @@ class Game {
                         });
                         break;
                     case '🎲':
-                        if (this.players[this.currentPlayer].id === reactor.id && !this.otherAction) {
-                            if (this.players[this.currentPlayer].currentLocation === 'jail') {
-                                die1 = random(1, 6);
-                                die2 = random(1, 6);
-                                if (die1 === die2) {
-                                    this.advancePlayer();
-                                    this.returnToReadyState('{{previoususer}} got out of jail!\nIt is now {{currentuser}}\'s turn!')
-                                }
-                            }
-                            if (!this.players[this.currentPlayer].debtMode && this.players[this.currentPlayer].currentLocation !== 'jail') {
+                        if (this.players[this.currentPlayer].id === reactor.id && !this.otherAction && !this.moving) {
+                            if (!this.players[this.currentPlayer].debtMode) {
+                                this.moving = true;
                                 this.movePlayer();
-                            } else if (this.players[this.currentPlayer].currentLocation !== 'jail') {
+                            }else {
                                 let messageDescription = this.channel.messages.get(this.message.id).embeds[0].description;
                                 this.message.edit({
                                     embed: {
@@ -882,12 +882,12 @@ class Game {
                         }
                         break;
                     case '📧':
-                        if (this.players[this.currentPlayer].id === reactor.id && !this.otherAction) {
+                        if (this.players[this.currentPlayer].id === reactor.id && !this.otherAction && !this.moving) {
                             this.handleTrading();
                         }
                         break;
                     case 'bankrupt':
-                        if (this.players[this.currentPlayer].id === reactor.id && !this.otherAction) {
+                        if (this.players[this.currentPlayer].id === reactor.id && !this.otherAction && !this.moving) {
                             if (!this.players[this.currentPlayer].debtMode) {
                                 let messageDescription = this.channel.messages.get(this.message.id).embeds[0].description;
                                 this.message.edit({
@@ -969,13 +969,29 @@ class Game {
                         }
                         break;
                     case '💳':
-                        if (this.players[this.currentPlayer].id === reactor.id && !this.otherAction) {
-                            this.handleMortgaging();
+                        if (this.players[this.currentPlayer].id === reactor.id && !this.otherAction && !this.moving) {
+                            this.handleMortgaging('menu');
                         }
                         break;
                     case '🏦':
-                        if (this.players[this.currentPlayer].id === reactor.id && !this.otherAction) {
+                        if (this.players[this.currentPlayer].id === reactor.id && !this.otherAction && !this.moving) {
                             this.handleBuyingSellingHousing();
+                        }
+                    break;
+                    case '💸':
+                        if (this.players[this.currentPlayer].id === reactor.id && !this.otherAction && !this.moving) {
+                            if (this.players[this.currentPlayer].debtMode) {
+                                if (this.players[this.currentPlayer].money > this.players[this.currentPlayer].inDebtBy) {
+                                    if (this.players[this.currentPlayer].inDebtTo === 'bank') {
+                                        this.players[this.currentPlayer].money -= this.players[this.currentPlayer].inDebtBy;
+                                        this.players[this.currentPlayer].inDebtTo = null;
+                                        this.players[this.currentPlayer].inDebtBy = 0;
+                                        this.players[this.currentPlayer].debtMode = false;
+                                        this.advancePlayer();
+                                        this.returnToReadyState('{{previoususer}} just paid off his debt to the bank.\n it is now {{currentuser}}\'s turn!')
+                                    }
+                                }
+                            }
                         }
                 }
                 this.message.removeReaction(emoji.name === 'bankrupt' ? `${emoji.name}:${emoji.id}` : emoji.name, reactor.id);
@@ -985,9 +1001,9 @@ class Game {
     }
 
     returnToReadyState(readyStateMessage) {
+        this.moving = false;
         if (this.players[this.currentPlayer].money < 1) this.handleDebt();
         this.otherAction = false;
-        this.message.addReaction('🔚').then(() => this.message.addReaction('🎲').then(() => this.message.addReaction('📧').then(() => this.message.addReaction('bankrupt:593118614031171586').then(() => this.message.addReaction('💳').then(() => this.message.addReaction('ℹ').then(() => this.message.addReaction('🏦')))))));
         if (this.players[this.currentPlayer].debtMode) {
             this.message.addReaction('💸')
         } else {
@@ -1044,45 +1060,56 @@ class Game {
                 die1 = random(1, 6);
                 die2 = random(1, 6);
                 setTimeout(() => {
-                    this.message.edit({
-                        content: `<@${this.players[this.currentPlayer].id}>`,
-                        embed: {
-                            title: 'Monopoly',
-                            color: parseInt('36393E', 16),
-                            description: 'Moving..',
-                            fields: [{
-                                    name: `${this.players[this.currentPlayer].username}#${this.players[this.currentPlayer].discriminator}'s Money`,
-                                    value: this.players[this.currentPlayer].money
-                                },
-                                {
-                                    name: 'Die 1',
-                                    value: die1
-                                },
-                                {
-                                    name: 'Die 2',
-                                    value: die2
-                                }
-                            ]
+                    if (this.players[this.currentPlayer].currentLocation === 'jail') {
+                        if (die1 === die2) {
+                            this.players[this.currentPlayer].currentLocation = 10;
+                            this.advancePlayer();
+                            this.returnToReadyState('{{previoususer}} got out of jail, while they\'re waiting for their turn, they\'re taking a nice stroll around jail!\nIt\'s {{currentuser}}\'s turn now!');
+                        }else {
+                            this.advancePlayer();
+                            this.returnToReadyState('Its not {{previoususer}}\'s lucky day becuase they are still in jail!\nIt\'s {{currentuser}}\'s turn now!');
                         }
-                    }).then(() => {
-                        setTimeout(() => {
-                            if (this.players[this.currentPlayer].currentLocation !== 'jail' && !this.players[this.currentPlayer].debtMode) {
-                                this.players[this.currentPlayer].currentLocation++
-                                for (let i = 0; i <= (die1 + die2); i++) {
-                                    if (i < (die1 + die2)) {
-                                        if (this.map[this.players[this.currentPlayer].currentLocation].type === 'special') this.handleSpecialMapLocation(this.map[this.players[this.currentPlayer].currentLocation], 'pass', die1, die2);
-                                    } else {
-                                        this.players[this.currentPlayer].currentLocation--
-                                        if (this.map[this.players[this.currentPlayer].currentLocation].type === 'special') this.handleSpecialMapLocation(this.map[this.players[this.currentPlayer].currentLocation], 'land', die1, die2);
-                                        else this.handleMapLocation(this.map[this.players[this.currentPlayer].currentLocation], die1, die2);
+                    }else {
+                        this.message.edit({
+                            content: `<@${this.players[this.currentPlayer].id}>`,
+                            embed: {
+                                title: 'Monopoly',
+                                color: parseInt('36393E', 16),
+                                description: 'Moving..',
+                                fields: [{
+                                        name: `${this.players[this.currentPlayer].username}#${this.players[this.currentPlayer].discriminator}'s Money`,
+                                        value: this.players[this.currentPlayer].money
+                                    },
+                                    {
+                                        name: 'Die 1',
+                                        value: die1
+                                    },
+                                    {
+                                        name: 'Die 2',
+                                        value: die2
                                     }
-                                    if (i < (die1 + die2)) {
-                                        if (++this.players[this.currentPlayer].currentLocation === this.map.length) this.players[this.currentPlayer].currentLocation = 0;
+                                ]
+                            }
+                        }).then(() => {
+                            setTimeout(() => {
+                                if (this.players[this.currentPlayer].currentLocation !== 'jail' && !this.players[this.currentPlayer].debtMode) {
+                                    this.players[this.currentPlayer].currentLocation++
+                                    for (let i = 0; i <= (die1 + die2); i++) {
+                                        if (i < (die1 + die2)) {
+                                            if (this.map[this.players[this.currentPlayer].currentLocation].type === 'special') this.handleSpecialMapLocation(this.map[this.players[this.currentPlayer].currentLocation], 'pass', die1, die2);
+                                        } else {
+                                            this.players[this.currentPlayer].currentLocation--
+                                            if (this.map[this.players[this.currentPlayer].currentLocation].type === 'special') this.handleSpecialMapLocation(this.map[this.players[this.currentPlayer].currentLocation], 'land', die1, die2);
+                                            else this.handleMapLocation(this.map[this.players[this.currentPlayer].currentLocation], die1, die2);
+                                        }
+                                        if (i < (die1 + die2)) {
+                                            if (++this.players[this.currentPlayer].currentLocation === this.map.length) this.players[this.currentPlayer].currentLocation = 0;
+                                        }
                                     }
                                 }
-                            }
-                        }, 2000);
-                    });
+                            }, 2000);
+                        });
+                    }
                 }, 2000);
             });
         }
@@ -1105,11 +1132,11 @@ class Game {
             } else if (typeof location.actions.land === 'string') {
                 switch (location.actions.land) {
                     case 'comchest':
-                        let comchest = communityChest[Math.round(Math.random() * communityChest.length)]
+                        let comchest = communityChest[random(0, communityChest.length - 1)]
                         this.handleCards(comchest, 'Community Chest', die1, die2);
                         break;
                     case 'chance':
-                        let chancecrd = chance[Math.round(Math.random() * chance.length)]
+                        let chancecrd = chance[random(0, chance.length - 1)]
                         this.handleCards(chancecrd, 'Chance Pile', die1, die2);
                         break;
                     case 'tojail':
@@ -1122,7 +1149,7 @@ class Game {
                             this.returnToReadyState(`{{currentuser}} found one more free spot in the Free Parking lot!\nThey also rolled a double, so they go again!`);
                         } else {
                             this.advancePlayer();
-                            this.returnToReadyState(`{{previoususer}} found one more free spot in the Free Parking lot!!\nIt is now {{currentuser}}\'s turn!`);
+                            this.returnToReadyState(`{{previoususer}} found one more free spot in the Free Parking lot!\nIt is now {{currentuser}}\'s turn!`);
                         }
                         break;
                     case 'visitingjail':
@@ -1255,7 +1282,7 @@ class Game {
         this.reactionAddTrade = (mes, emoji, user) => {
             let reactor = mes.channel.guild.members.get(user).user;
             this.addAllReactionsTrade = () => {
-                this.message.addReaction('❌').then(() => this.message.addReaction('1⃣').then(() => this.message.addReaction('2⃣').then(() => this.message.addReaction('3⃣').then(() => this.message.addReaction('4⃣').then(() => this.message.addReaction('5⃣').then(() => this.message.addReaction('6⃣').then(() => this.message.addReaction('7⃣').then(() => this.message.addReaction('8⃣').then(() => this.message.addReaction('9⃣').then(() => this.message.addReaction('0⃣').then(() => this.message.addReaction('➖').then(() => this.message.addReaction('#⃣').then(() => this.message.addReaction('🏠'))))))))))))));
+                this.message.addReaction('❌').then(() => this.message.addReaction('1⃣').then(() => this.message.addReaction('2⃣').then(() => this.message.addReaction('3⃣').then(() => this.message.addReaction('4⃣').then(() => this.message.addReaction('5⃣').then(() => this.message.addReaction('6⃣').then(() => this.message.addReaction('7⃣').then(() => this.message.addReaction('8⃣').then(() => this.message.addReaction('9⃣').then(() => this.message.addReaction('0⃣').then(() => this.message.addReaction('➖').then(() => this.message.addReaction('#⃣').then(() => this.message.addReaction('🏠').then(() => this.message.addReaction('✅')))))))))))))));
             }
             this.editTheMessageTrade = () => {
                 this.message.edit({
@@ -1276,11 +1303,11 @@ class Game {
                                 value: tradeOffer.money.toString().includes('-') ? `$${tradeOffer.money.toString().replace(/-/g, '')} from <@${tradingWith}>` : `$${tradeOffer.money.toString().replace(/-/g, '')} to <@${tradingWith}>`
                             },
                             {
-                                name: 'Property Offer to Other Party',
+                                name: `Property Offer to ${this.players.filter(p => p.id === tradingWith)[0].username}#${this.players.filter(p => p.id === tradingWith)[0].discriminator}`,
                                 value: tradeOffer.properties.to.map(e => e.name)[0] ? tradeOffer.properties.to.map(e => e.name).join('\n') : 'None yet'
                             },
                             {
-                                name: 'Property Offer from Other Party',
+                                name: `Property Offer from ${this.players.filter(p => p.id === tradingWith)[0].username}#${this.players.filter(p => p.id === tradingWith)[0].discriminator}`,
                                 value: tradeOffer.properties.from.map(e => e.name)[0] ? tradeOffer.properties.from.map(e => e.name).join('\n') : 'None yet'
                             }
                         ]
@@ -1383,14 +1410,14 @@ class Game {
                                 this.message.removeReactions().then(() => this.message.addReaction('⬅').then(() => this.message.addReaction('➡')));
                             }
                             this.addAllReactionsTradeProperties2 = () => {
-                                this.message.removeReactions().then(() => this.message.addReaction('⬅').then(() => this.message.addReaction('⬆').then(() => this.message.addReaction('⬇').then(() => this.message.addReaction('⏺')))));
+                                this.message.removeReactions().then(() => this.message.addReaction('⬅').then(() => this.message.addReaction('⬆').then(() => this.message.addReaction('⬇').then(() => this.message.addReaction('⏺').then(() => this.message.addReaction('❌'))))));
                             }
                             this.editTheMessageTradeProperties = () => {
                                 this.message.edit({
                                     embed: {
                                         title: 'Monopoly',
                                         color: parseInt('36393E', 16),
-                                        description: `React with ⬇ ⬆ emojis to cycle up and down thorugh the options.\nReact with the ⏺ emoji to select the property.\nReact with the ⬅ emoji to go back.`,
+                                        description: `React with ⬇ ⬆ emojis to cycle up and down thorugh the options.\nReact with the ⏺ emoji to select the property.\nReact with the ⬅ emoji to go back.\nReact with the ❌ emoji to go back to the main trading menu.`,
                                         fields: [{
                                                 name: 'List of properties',
                                                 value: this.map.filter(e => e.ownedBy === person).map(p => p.name)[0] ? this.map.filter(e => e.ownedBy === person).map(p => p.name).join('\n') : 'This Player has no properties'
@@ -1453,24 +1480,25 @@ class Game {
                                         case '⏺':
                                             if (person === tradingWith) tradeOffer.properties.from.push(this.map.filter(e => e.ownedBy === person)[selection]);
                                             else if (person === this.players[this.currentPlayer].id) tradeOffer.properties.to.push(this.map.filter(e => e.ownedBy === person)[selection]);
-                                            this.addAllReactionsTrade();
+                                            this.message.removeReactions().then(() => this.addAllReactionsTrade());
                                             this.editTheMessageTrade();
-                                            this.message.removeReactions();
                                             somethingElse = false;
                                             this.client.off('messageReactionAdd', this.reactionAddTradeProperties);
                                             break;
                                         case '❌':
+                                            somethingElse = false;
+                                            this.client.off('messageReactionAdd', this.reactionAddTradeProperties);
                                             this.editTheMessageTrade();
-                                            this.addAllReactionsTrade();
+                                            this.message.removeReactions().then(() => this.addAllReactionsTrade());
                                     }
                             }
                             this.client.on('messageReactionAdd', this.reactionAddTradeProperties);
                         }
                         break;
                     case '❌':
-                        if (reactor.id === currentDecidingFactor) {
-                            this.message.removeReactions();
+                        if (reactor.id === currentDecidingFactor && !somethingElse) {
                             this.client.off('messageReactionAdd', this.reactionAddTrade);
+                            this.message.removeReactions().then(() => this.defaultReactions());
                             this.returnToReadyState('Trade canceled!');
                         }
                         break;
@@ -1495,11 +1523,11 @@ class Game {
                                             value: tradeOffer.money.toString().includes('-') ? `$${tradeOffer.money.toString().replace(/-/g, '')} from <@${tradingWith}>` : `$${tradeOffer.money.toString().replace(/-/g, '')} to <@${tradingWith}>`
                                         },
                                         {
-                                            name: 'Property Offer to Other Party',
+                                            name: `Property Offer to ${this.players.filter(p => p.id === tradingWith)[0].username}#${this.players.filter(p => p.id === tradingWith)[0].discriminator}`,
                                             value: tradeOffer.properties.to.map(e => e.name)[0] ? tradeOffer.properties.to.map(e => e.name).join('\n') : 'None yet'
                                         },
                                         {
-                                            name: 'Property Offer from Other Party',
+                                            name: `Property Offer from ${this.players.filter(p => p.id === tradingWith)[0].username}#${this.players.filter(p => p.id === tradingWith)[0].discriminator}`,
                                             value: tradeOffer.properties.from.map(e => e.name)[0] ? tradeOffer.properties.from.map(e => e.name).join('\n') : 'None yet'
                                         }
                                     ]
@@ -1519,7 +1547,9 @@ class Game {
                             tradeOffer.properties.from.forEach(p => {
                                 this.map[this.map.indexOf(p)].ownedBy = this.players[this.currentPlayer].id;
                             })
-                            this.returnToReadyState()
+                            this.client.off('messageReactionAdd', this.reactionAddTrade);
+                            this.message.removeReactions().then(() => this.defaultReactions());
+                            this.returnToReadyState('Trade Complete!');
                         }
                         break;
                 }
@@ -1552,11 +1582,158 @@ class Game {
     }
 
     handleBuyingSellingHousing() {
+        let submenu = false;
+        let selection = 0;
+        let type;
+        this.otherAction = true;
+        this.message.edit({
+            embed: {
+                title: 'Monopoly',
+                color: parseInt('36393E', 16),
+                description: 'Buying and Selling Houses and Hotels\nTo view all your properties that are eligible for building houses and hotels on, react with the 🏡 emoji.\nTo view already built houses and hotels, react with the 🏚 emoji.'
+            }
+        });
+        this.addAllReactionsHousing = () => {
+            this.message.addReaction('❌').then(() => this.message.addReaction('🏡').then(() => this.message.addReaction('🏚')))
+        }
+        this.editTheMessageHousing = () => {
+            this.message.edit({
+                embed: {
+                    title: 'Monopoly',
+                    color: parseInt('36393E', 16),
+                    description: `These are the properties that are ${otherType === 'buy' ? 'eligible' : 'not eligible'} .\nReact with ⬇ ⬆ emojis to cycle up and down thorugh the options.\nReact with the ⏺ emoji to ${type === 'buy' ? 'buy' : 'sell'} houses/hotels on the selected property.\nReact with the ❌ emoji to go back to the main Buying and Selling Houses and Hotels menu.`,
+                    fields: [
+                        {
+                            name: 'List of properties',
+                            value: this.map.filter(p => p.ownedBy === this.players[this.currentPlayer].id && (type === 'buy' ? p.mortgaged : !p.mortgaged))[0] ? this.map.filter(p => p.ownedBy === this.players[this.currentPlayer].id && (type === 'mortgaged' ? p.mortgaged : !p.mortgaged)).map(p => `${p.name} | ${otherType === 'mortgaged' ? 'owed:' : 'mortgage for:'} $${otherType === 'mortgaged' ? p.mortgage * 1.1 : p.mortgage}`).join('\n') : 'None yet'
+                        },
+                        {
+                            name: 'Selection',
+                            value: this.map.filter(p => p.ownedBy === this.players[this.currentPlayer].id && (type === 'buy' ? p.mortgaged : !p.mortgaged))[0] ? this.map.filter(p => p.ownedBy === this.players[this.currentPlayer].id && (type === 'mortgaged' ? p.mortgaged : !p.mortgaged)).map(p => `${p.name} | ${otherType === 'mortgaged' ? 'owed:' : 'mortgage for:'} $${otherType === 'mortgaged' ? p.mortgage * 1.1 : p.mortgage}`)[selection] : 'None yet'
+                        }
+                    ]
+                }
+            });
+        }
+        this.reactionAddHousing = (mes, emoji, user) => {
 
+        }
     }
 
-    handleMortgaging() {
-
+    handleMortgaging(type) {
+        let submenu = false;
+        let selection = 0;
+        let otherType;
+        switch(type) {
+            case 'menu':
+                this.otherAction = true;
+                this.message.edit({
+                    embed: {
+                        title: 'Monopoly',
+                        color: parseInt('36393E', 16),
+                        description: 'Mortgaging Menu\nTo view all of your currently mortgaged properties, react with the 🏦 emoji.\nTo view properties without a mortgage, react with the 🏠 emoji.'
+                    }
+                });
+                this.addAllReactionsMortgaging = () => {
+                    this.message.addReaction('❌').then(() => this.message.addReaction('🏦').then(() => this.message.addReaction('🏠')));
+                }
+                this.editTheMessageMortgaging = () => {
+                    this.message.edit({
+                        embed: {
+                            title: 'Monopoly',
+                            color: parseInt('36393E', 16),
+                            description: `These are the properties that are ${otherType === 'mortgaged' ? '' : 'not '}mortgaged.\nReact with ⬇ ⬆ emojis to cycle up and down thorugh the options.\nReact with the ⏺ emoji to ${otherType === 'mortgaged' ? 'pay off' : 'mortgage'} the selected property.\nReact with the ❌ emoji to go back to the main mortgaging menu.`,
+                            fields: [
+                                {
+                                    name: 'List of properties',
+                                    value: this.map.filter(p => p.ownedBy === this.players[this.currentPlayer].id && (otherType === 'mortgaged' ? p.mortgaged : !p.mortgaged))[0] ? this.map.filter(p => p.ownedBy === this.players[this.currentPlayer].id && (otherType === 'mortgaged' ? p.mortgaged : !p.mortgaged)).map(p => `${p.name} | ${otherType === 'mortgaged' ? 'owed:' : 'mortgage for:'} $${otherType === 'mortgaged' ? p.mortgage * 1.1 : p.mortgage}`).join('\n') : 'None yet'
+                                },
+                                {
+                                    name: 'Selection',
+                                    value: this.map.filter(p => p.ownedBy === this.players[this.currentPlayer].id && (otherType === 'mortgaged' ? p.mortgaged : !p.mortgaged))[0] ? this.map.filter(p => p.ownedBy === this.players[this.currentPlayer].id && (otherType === 'mortgaged' ? p.mortgaged : !p.mortgaged)).map(p => `${p.name} | ${otherType === 'mortgaged' ? 'owed:' : 'mortgage for:'} $${otherType === 'mortgaged' ? p.mortgage * 1.1 : p.mortgage}`)[selection] : 'None yet'
+                                }
+                            ]
+                        }
+                    })
+                }
+                this.message.removeReactions().then(() => this.addAllReactionsMortgaging());
+                this.addAllReactionsMortgaging1 = () => {
+                    this.message.addReaction('❌').then(() => this.message.addReaction('⬇').then(() => this.message.addReaction('⬆').then(() => this.message.addReaction('⏺'))))
+                }
+                this.reactionAddMortgaging = (mes, emoji, user) => {
+                    let reactor = mes.channel.guild.members.get(user).user;
+                    if (this.players[this.currentPlayer].id === reactor.id && !reactor.bot) {
+                        switch(emoji.name) {
+                            case '🏦':
+                                if (!submenu) {
+                                    submenu = true;
+                                    otherType = 'mortgaged';
+                                    this.message.removeReactions().then(() => this.addAllReactionsMortgaging1());
+                                    this.editTheMessageMortgaging();
+                                }
+                            break;
+                            case '🏠':
+                                if (!submenu) {
+                                    submenu = true;
+                                    otherType = 'notmortgaged';
+                                    this.message.removeReactions().then(() => this.addAllReactionsMortgaging1());
+                                    this.editTheMessageMortgaging();
+                                }
+                            break;
+                            case '⬇':
+                                if (submenu) {
+                                    if (++selection === this.map.filter(e => e.ownedBy === this.players[this.currentPlayer].id && (otherType === 'mortgaged' ? e.mortgaged : !e.mortgaged)).length) selection = 0;
+                                    this.editTheMessageMortgaging();
+                                }
+                                break;
+                            case '⬆':
+                                if (submenu) {
+                                    if (--selection === -1) selection = this.map.filter(e => e.ownedBy === this.players[this.currentPlayer].id && (otherType === 'mortgaged' ? e.mortgaged : !e.mortgaged)).length - 1;
+                                    this.editTheMessageMortgaging();
+                                }
+                                break;
+                            case '⏺':
+                                if (otherType === 'mortgaged') {
+                                    let thisProperty = this.map.indexOf(this.map.filter(e => e.ownedBy === this.players[this.currentPlayer].id && (otherType === 'mortgaged' ? e.mortgaged : !e.mortgaged))[selection]);
+                                    this.map[thisProperty].mortgaged = false;
+                                    this.players[this.currentPlayer].money -= this.map[thisProperty].mortgage * 1.1;
+                                }else {
+                                    let thisProperty = this.map.indexOf(this.map.filter(e => e.ownedBy === this.players[this.currentPlayer].id && (otherType === 'mortgaged' ? e.mortgaged : !e.mortgaged))[selection]);
+                                    this.map[thisProperty].mortgaged = true;
+                                    this.players[this.currentPlayer].money += this.map[thisProperty].mortgage;
+                                }
+                                this.message.removeReactions().then(() => this.addAllReactionsMortgaging());
+                                this.message.edit({
+                                    embed: {
+                                        title: 'Monopoly',
+                                        color: parseInt('36393E', 16),
+                                        description: 'Mortgaging Menu\nTo view all of your currently mortgaged properties, react with the 🏦 emoji.\nTo view properties without a mortgage, react with the 🏠 emoji.'
+                                    }
+                                });
+                                submenu = false;
+                                break;
+                            case '❌':
+                                if (submenu) {
+                                    submenu = false;
+                                    this.message.edit({
+                                        embed: {
+                                            title: 'Monopoly',
+                                            color: parseInt('36393E', 16),
+                                            description: 'Mortgaging Menu\nTo view all of your currently mortgaged properties, react with the 🏦 emoji.\nTo view properties without a mortgage, react with the 🏠 emoji.'
+                                        }
+                                    });
+                                    this.message.removeReactions().then(() => this.addAllReactionsMortgaging());
+                                }else {
+                                    this.client.off('messageReactionAdd', this.reactionAddMortgaging);
+                                    this.message.removeReactions().then(() => this.defaultReactions());
+                                    this.returnToReadyState('Done managing mortgages!');
+                                }
+                        }
+                    }
+                }
+                this.client.on('messageReactionAdd', this.reactionAddMortgaging);
+            break;
+        }
     }
 
     handleAuction(properties, auctionType, die1, die2) {
@@ -1809,7 +1986,12 @@ class Game {
                 }
                 break;
             case 'toillinois':
-                if (this.map.indexOf(this.map.filter(p => p.name === 'Illinois Avenue')[0]) < this.players[this.currentPlayer].currentLocation) this.movePlayer(this.map.length - this.players[this.currentPlayer].currentLocation + this.map.indexOf(this.map.filter(p => p.name === 'Illinois Avenue')[0]));
+                if (this.map.indexOf(this.map.filter(p => p.name === 'Illinois Avenue')[0]) < this.players[this.currentPlayer].currentLocation) {
+                    this.players[this.currentPlayer].currentLocation = this.map.indexOf(this.map.filter(p => p.name === 'Illinois Avenue')[0]);
+                    this.players[this.currentPlayer].money += 200;
+                }else {
+                    this.players[this.currentPlayer].currentLocation = this.map.indexOf(this.map.filter(p => p.name === 'Illinois Avenue')[0]);
+                }
                 if (die1 === die2) {
                     this.returnToReadyState(`{{currentuser}} pulled from the ${deck} and recieved a "${card.name}" card!\nThey also rolled a double, so they go again!`);
                 } else {
@@ -1818,7 +2000,7 @@ class Game {
                 }
                 break;
             case 'toboardwalk':
-                this.movePlayer(this.map.indexOf(this.map.filter(p => p.name === 'Boardwalk')[0]) - this.players[this.currentPlayer].currentLocation);
+                this.players[this.currentPlayer].currentLocation = this.map.indexOf(this.map.filter(p => p.name === 'Boardwalk')[0]);
                 if (die1 === die2) {
                     this.returnToReadyState(`{{currentuser}} pulled from the ${deck} and recieved a "${card.name}" card!\nThey also rolled a double, so they go again!`);
                 } else {
@@ -1865,7 +2047,12 @@ class Game {
                 }
                 break;
             case 'toreading':
-                if (this.map.indexOf(this.map.filter(p => p.name === 'Reading Railroad')[0]) < this.players[this.currentPlayer].currentLocation) this.movePlayer(this.map.length - this.players[this.currentPlayer].currentLocation + this.map.indexOf(this.map.filter(p => p.name === 'Reading Railroad')[0]));
+                if (this.map.indexOf(this.map.filter(p => p.name === 'Reading Railroad')[0]) < this.players[this.currentPlayer].currentLocation) {
+                    this.players[this.currentPlayer].currentLocation = this.map.indexOf(this.map.filter(p => p.name === 'Reading Railroad')[0]);
+                    this.players[this.currentPlayer].money += 200;
+                }else {
+                    this.players[this.currentPlayer].currentLocation = this.map.indexOf(this.map.filter(p => p.name === 'Reading Railroad')[0]);
+                }
                 if (die1 === die2) {
                     this.returnToReadyState(`{{currentuser}} pulled from the ${deck} and recieved a "${card.name}" card!\nThey also rolled a double, so they go again!`);
                 } else {
@@ -1874,7 +2061,12 @@ class Game {
                 }
                 break;
             case 'tocharles':
-                if (this.map.indexOf(this.map.filter(p => p.name === 'St. Charles Place')[0]) < this.players[this.currentPlayer].currentLocation) this.movePlayer(this.map.length - this.players[this.currentPlayer].currentLocation + this.map.indexOf(this.map.filter(p => p.name === 'St. Charles Place')[0]));
+                if (this.map.indexOf(this.map.filter(p => p.name === 'St. Charles Place')[0]) < this.players[this.currentPlayer].currentLocation) {
+                    this.players[this.currentPlayer].currentLocation = this.map.indexOf(this.map.filter(p => p.name === 'St. Charles Place')[0]);
+                    this.players[this.currentPlayer].money += 200;
+                }else {
+                    this.players[this.currentPlayer].currentLocation = this.map.indexOf(this.map.filter(p => p.name === 'St. Charles Place')[0]);
+                }
                 if (die1 === die2) {
                     this.returnToReadyState(`{{currentuser}} pulled from the ${deck} and recieved a "${card.name}" card!\nThey also rolled a double, so they go again!`);
                 } else {
@@ -1898,75 +2090,103 @@ class Game {
     handleRent(property, die1, die2) {
         switch (property.type) {
             case 'normal':
-                if (this.players[this.currentPlayer].money < property.rent[property.houses.toString()]) {
-                    this.handleDebt(property.ownedBy, property.rent[property.houses.toString()]);
-                } else {
-                    this.players.filter(p => p.id === property.ownedBy)[0].money += property.rent[property.houses.toString()];
-                    this.players[this.currentPlayer].money -= property.rent[property.houses.toString()];
+                if (!property.mortgaged) {
+                    if (this.players[this.currentPlayer].money < property.rent[property.houses.toString()]) {
+                        this.handleDebt(property.ownedBy, property.rent[property.houses.toString()]);
+                    } else {
+                        this.players.filter(p => p.id === property.ownedBy)[0].money += property.rent[property.houses.toString()];
+                        this.players[this.currentPlayer].money -= property.rent[property.houses.toString()];
+                        if (die1 === die2 && die1 && die2) {
+                            this.returnToReadyState(`{{currentuser}} went to ${property.name} had to pay $${property.rent[property.houses.toString()]} to <@${property.ownedBy}> in rent!\nThey also rolled a double, so they go again!`);
+                        } else if (die1 && die2) {
+                            this.advancePlayer();
+                            this.returnToReadyState(`{{previoususer}} went to ${property.name} had to pay $${property.rent[property.houses.toString()]} to <@${property.ownedBy}> in rent!\nIt is now {{currentuser}}\'s turn!`);
+                        }
+                    }
+                }else {
                     if (die1 === die2 && die1 && die2) {
-                        this.returnToReadyState(`{{currentuser}} went to ${property.name} had to pay $${property.rent[property.houses.toString()]} to <@${property.ownedBy}> in rent!\nThey also rolled a double, so they go again!`);
+                        this.returnToReadyState(`{{currentuser}} went to ${property.name} but did not have to pay <@${property.ownedBy}> in rent because the property was mortgaged!\nThey also rolled a double, so they go again!`);
                     } else if (die1 && die2) {
                         this.advancePlayer();
-                        this.returnToReadyState(`{{previoususer}} went to ${property.name} had to pay $${property.rent[property.houses.toString()]} to <@${property.ownedBy}> in rent!\nIt is now {{currentuser}}\'s turn!`);
+                        this.returnToReadyState(`{{previoususer}} went to ${property.name} but did not have to pay <@${property.ownedBy}> in rent because the property was mortgaged!\nIt is now {{currentuser}}\'s turn!`);
                     }
                 }
                 break;
             case 'railroad':
-                if (this.players[this.currentPlayer].money < property.rent[this.map.filter(p => p.type === 'railroad' && p.ownedBy === property.ownedBy).length.toString()]) {
-                    this.handleDebt(property.ownedBy, property.rent[this.map.filter(p => p.type === 'railroad' && p.ownedBy === property.ownedBy).length.toString()]);
-                } else {
-                    this.players.filter(p => p.id === property.ownedBy)[0].money += property.rent[this.map.filter(p => p.type === 'railroad' && p.ownedBy === property.ownedBy).length.toString()];
-                    this.players[this.currentPlayer].money -= property.rent[this.map.filter(p => p.type === 'railroad' && p.ownedBy === property.ownedBy).length.toString()];
+                if (!property.mortgaged) {
+                    if (this.players[this.currentPlayer].money < property.rent[this.map.filter(p => p.type === 'railroad' && p.ownedBy === property.ownedBy).length.toString()]) {
+                        this.handleDebt(property.ownedBy, property.rent[this.map.filter(p => p.type === 'railroad' && p.ownedBy === property.ownedBy).length.toString()]);
+                    } else {
+                        this.players.filter(p => p.id === property.ownedBy)[0].money += property.rent[this.map.filter(p => p.type === 'railroad' && p.ownedBy === property.ownedBy).length.toString()];
+                        this.players[this.currentPlayer].money -= property.rent[this.map.filter(p => p.type === 'railroad' && p.ownedBy === property.ownedBy).length.toString()];
+                        if (die1 === die2 && die1 && die2) {
+                            this.returnToReadyState(`{{currentuser}} went to ${property.name} had to pay $${property.rent[this.map.filter(p => p.type === 'railroad' && p.ownedBy === property.ownedBy).length.toString()]} to <@${property.ownedBy}> in rent!\nThey also rolled a double, so they go again!`);
+                        } else if (die1 && die2) {
+                            this.advancePlayer();
+                            this.returnToReadyState(`{{previoususer}} went to ${property.name} had to pay $${property.rent[this.map.filter(p => p.type === 'railroad' && p.ownedBy === property.ownedBy).length.toString()]} to <@${property.ownedBy}> in rent!\nIt is now {{currentuser}}\'s turn!`);
+                        }
+                    }
+                }else {
                     if (die1 === die2 && die1 && die2) {
-                        this.returnToReadyState(`{{currentuser}} went to ${property.name} had to pay $${property.rent[this.map.filter(p => p.type === 'railroad' && p.ownedBy === property.ownedBy).length.toString()]} to <@${property.ownedBy}> in rent!\nThey also rolled a double, so they go again!`);
+                        this.returnToReadyState(`{{currentuser}} went to ${property.name} but did not have to pay <@${property.ownedBy}> in rent because the property was mortgaged!\nThey also rolled a double, so they go again!`);
                     } else if (die1 && die2) {
                         this.advancePlayer();
-                        this.returnToReadyState(`{{previoususer}} went to ${property.name} had to pay $${property.rent[this.map.filter(p => p.type === 'railroad' && p.ownedBy === property.ownedBy).length.toString()]} to <@${property.ownedBy}> in rent!\nIt is now {{currentuser}}\'s turn!`);
+                        this.returnToReadyState(`{{previoususer}} went to ${property.name} but did not have to pay <@${property.ownedBy}> in rent because the property was mortgaged!\nIt is now {{currentuser}}\'s turn!`);
                     }
                 }
                 break;
             case 'utility':
-                this.otherAction = true;
-                this.message.edit({
-                    content: `<@${this.players[this.currentPlayer].id}>`,
-                    embed: {
-                        title: 'Monopoly',
-                        color: parseInt('36393E', 16),
-                        description: `You landed on ${property.name}, which owned by <@${property.ownedBy}> and not mortgaged, to continue, roll the die.`,
-                        fields: [{
-                                name: 'Your money',
-                                value: `Up now: <@${this.players[this.currentPlayer].id}>\nUp next: <@${this.players[this.nextPlayer].id}>`
-                            },
-                            {
-                                name: 'Die 1',
-                                value: die1
-                            },
-                            {
-                                name: 'Die 2',
-                                value: die2
-                            }
-                        ]
-                    }
-                })
-                this.reactionAddUtility = (mes, emoji, user) => {
-                    let reactor = mes.channel.guild.members.get(user).user;
-                    if (this.message.id === mes.id && !reactor.bot && emoji.name === '🎲') {
-                        let die = random(1, 6);
-                        if (this.players[this.currentPlayer].money < die * property.rent[this.map.filter(p => p.type === 'utility' && p.ownedBy === property.ownedBy).length.toString()]) {
-                            this.handleDebt(property.ownedBy, die * property.rent[this.map.filter(p => p.type === 'utility' && p.ownedBy === property.ownedBy).length.toString()]);
-                        } else {
-                            this.players.filter(p => p.id === property.ownedBy)[0].money += die * property.rent[this.map.filter(p => p.type === 'utility' && p.ownedBy === property.ownedBy).length.toString()];
-                            this.players[this.currentPlayer].money -= die * property.rent[this.map.filter(p => p.type === 'utility' && p.ownedBy === property.ownedBy).length.toString()];
-                            if (die1 === die2 && die1 && die2) {
-                                this.returnToReadyState(`{{currentuser}} went to ${property.name} had to pay $${property.rent[this.map.filter(p => p.type === 'railroad' && p.ownedBy === property.ownedBy).length.toString()]} to <@${property.ownedBy}> in rent!\nThey also rolled a double, so they go again!`);
-                            } else if (die1 && die2) {
-                                this.advancePlayer();
-                                this.returnToReadyState(`{{previoususer}} went to ${property.name} had to pay $${property.rent[this.map.filter(p => p.type === 'railroad' && p.ownedBy === property.ownedBy).length.toString()]} to <@${property.ownedBy}> in rent!\nIt is now {{currentuser}}\'s turn!`);
+                if (!property.mortgaged) {
+                    this.otherAction = true;
+                    this.message.edit({
+                        content: `<@${this.players[this.currentPlayer].id}>`,
+                        embed: {
+                            title: 'Monopoly',
+                            color: parseInt('36393E', 16),
+                            description: `You landed on ${property.name}, which owned by <@${property.ownedBy}> and not mortgaged, to continue, roll the die.`,
+                            fields: [{
+                                    name: 'Your money',
+                                    value: `Up now: <@${this.players[this.currentPlayer].id}>\nUp next: <@${this.players[this.nextPlayer].id}>`
+                                },
+                                {
+                                    name: 'Die 1',
+                                    value: die1
+                                },
+                                {
+                                    name: 'Die 2',
+                                    value: die2
+                                }
+                            ]
+                        }
+                    })
+                    this.reactionAddUtility = (mes, emoji, user) => {
+                        let reactor = mes.channel.guild.members.get(user).user;
+                        if (this.message.id === mes.id && !reactor.bot && emoji.name === '🎲') {
+                            let die = random(1, 6);
+                            if (this.players[this.currentPlayer].money < die * property.rent[this.map.filter(p => p.type === 'utility' && p.ownedBy === property.ownedBy).length.toString()]) {
+                                this.handleDebt(property.ownedBy, die * property.rent[this.map.filter(p => p.type === 'utility' && p.ownedBy === property.ownedBy).length.toString()]);
+                            } else {
+                                this.players.filter(p => p.id === property.ownedBy)[0].money += die * property.rent[this.map.filter(p => p.type === 'utility' && p.ownedBy === property.ownedBy).length.toString()];
+                                this.players[this.currentPlayer].money -= die * property.rent[this.map.filter(p => p.type === 'utility' && p.ownedBy === property.ownedBy).length.toString()];
+                                if (die1 === die2 && die1 && die2) {
+                                    this.returnToReadyState(`{{currentuser}} went to ${property.name} had to pay $${property.rent[this.map.filter(p => p.type === 'railroad' && p.ownedBy === property.ownedBy).length.toString()]} to <@${property.ownedBy}> in rent!\nThey also rolled a double, so they go again!`);
+                                } else if (die1 && die2) {
+                                    this.advancePlayer();
+                                    this.returnToReadyState(`{{previoususer}} went to ${property.name} had to pay $${property.rent[this.map.filter(p => p.type === 'railroad' && p.ownedBy === property.ownedBy).length.toString()]} to <@${property.ownedBy}> in rent!\nIt is now {{currentuser}}\'s turn!`);
+                                }
                             }
                         }
                     }
+                    this.client.on('messageReactionAdd', this.reactionAddUtility);
+                }else {
+                    if (die1 === die2 && die1 && die2) {
+                        this.returnToReadyState(`{{currentuser}} went to ${property.name} but did not have to pay <@${property.ownedBy}> in rent because the property was mortgaged!\nThey also rolled a double, so they go again!`);
+                    } else if (die1 && die2) {
+                        this.advancePlayer();
+                        this.returnToReadyState(`{{previoususer}} went to ${property.name} but did not have to pay <@${property.ownedBy}> in rent because the property was mortgaged!\nIt is now {{currentuser}}\'s turn!`);
+                    }
                 }
-                this.client.on('messageReactionAdd', this.reactionAddUtility);
+            break;
         }
         return;
     }
@@ -1998,7 +2218,7 @@ class Game {
                     embed: {
                         color: parseInt('ff0000', 16),
                         title: 'You left the game!',
-                        description: 'All of your money is forfit and you can\'t rejoin.'
+                        description: 'All of your money is forfeit and you can\'t rejoin.'
                     }
                 });
             });
