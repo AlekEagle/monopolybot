@@ -128,6 +128,16 @@ const chance = [
     special: 'tocharles'
 }
 ];
+const housePricing = {
+    darkpurple: 50,
+    lightblue: 50,
+    lightpurple: 100,
+    orange: 100,
+    red: 150,
+    yellow: 150,
+    green: 200,
+    blue: 200
+}
 const random = require('./randomNumFromRange');
 const u_wut_m8 = require('../.auth.json');
 const Logger = require('./logger');
@@ -148,6 +158,7 @@ class Game {
     constructor(client, message) {
         this.client = client;
         this.map = [
+
             {
                 name: 'Go',
                 actions: {
@@ -685,6 +696,7 @@ class Game {
         this.active = false;
         this.otherAction = false;
         this.moving = false;
+        module.exports.games.push(this.channel);
         message.channel.createMessage({
             embed: {
                 title: 'Let\'s play Monopoly!',
@@ -1036,6 +1048,7 @@ class Game {
         this.server = null;
         this.players = null;
         this.active = null;
+        delete module.exports.games[module.exports.games.indexOf(this.channel)] 
         return null;
     }
 
@@ -1098,7 +1111,7 @@ class Game {
                                         if (i < (die1 + die2)) {
                                             if (this.map[this.players[this.currentPlayer].currentLocation].type === 'special') this.handleSpecialMapLocation(this.map[this.players[this.currentPlayer].currentLocation], 'pass', die1, die2);
                                         } else {
-                                            this.players[this.currentPlayer].currentLocation--
+                                            if (-- this.players[this.currentPlayer].currentLocation === -1) this.players[this.currentPlayer].currentLocation = this.map.length - 1;
                                             if (this.map[this.players[this.currentPlayer].currentLocation].type === 'special') this.handleSpecialMapLocation(this.map[this.players[this.currentPlayer].currentLocation], 'land', die1, die2);
                                             else this.handleMapLocation(this.map[this.players[this.currentPlayer].currentLocation], die1, die2);
                                         }
@@ -1601,23 +1614,89 @@ class Game {
                 embed: {
                     title: 'Monopoly',
                     color: parseInt('36393E', 16),
-                    description: `These are the properties that are ${otherType === 'buy' ? 'eligible' : 'not eligible'} .\nReact with ⬇ ⬆ emojis to cycle up and down thorugh the options.\nReact with the ⏺ emoji to ${type === 'buy' ? 'buy' : 'sell'} houses/hotels on the selected property.\nReact with the ❌ emoji to go back to the main Buying and Selling Houses and Hotels menu.`,
+                    description: `These are the properties that are eligible to have houses/hotels ${type === 'buy' ? 'bought' : 'sold'}.\nReact with ⬇ ⬆ emojis to cycle up and down thorugh the options.\nReact with the ⏺ emoji to ${type === 'buy' ? 'buy' : 'sell'} houses/hotels on the selected property.\nReact with the ❌ emoji to go back to the main Buying and Selling Houses and Hotels menu.`,
                     fields: [
                         {
                             name: 'List of properties',
-                            value: this.map.filter(p => p.ownedBy === this.players[this.currentPlayer].id && (type === 'buy' ? p.mortgaged : !p.mortgaged))[0] ? this.map.filter(p => p.ownedBy === this.players[this.currentPlayer].id && (type === 'mortgaged' ? p.mortgaged : !p.mortgaged)).map(p => `${p.name} | ${otherType === 'mortgaged' ? 'owed:' : 'mortgage for:'} $${otherType === 'mortgaged' ? p.mortgage * 1.1 : p.mortgage}`).join('\n') : 'None yet'
+                            value: this.map.filter(p => this.map.filter(m => m.color === p.color).length === this.map.filter(m => m.color === p.color && m.ownedBy === this.players[this.currentPlayer].id).length && p.ownedBy === this.players[this.currentPlayer].id && (type === 'buy' ? p.houses < 4 : p.houses > 0))[0] ? this.map.filter(p => this.map.filter(m => m.color === p.color).length === this.map.filter(m => m.color === p.color && m.ownedBy === this.players[this.currentPlayer].id).length && p.ownedBy === this.players[this.currentPlayer].id && (type === 'buy' ? p.houses < 4 : p.houses > 0)).join('\n') : 'None yet'
                         },
                         {
                             name: 'Selection',
-                            value: this.map.filter(p => p.ownedBy === this.players[this.currentPlayer].id && (type === 'buy' ? p.mortgaged : !p.mortgaged))[0] ? this.map.filter(p => p.ownedBy === this.players[this.currentPlayer].id && (type === 'mortgaged' ? p.mortgaged : !p.mortgaged)).map(p => `${p.name} | ${otherType === 'mortgaged' ? 'owed:' : 'mortgage for:'} $${otherType === 'mortgaged' ? p.mortgage * 1.1 : p.mortgage}`)[selection] : 'None yet'
+                            value: this.map.filter(p => this.map.filter(m => m.color === p.color).length === this.map.filter(m => m.color === p.color && m.ownedBy === this.players[this.currentPlayer].id).length && p.ownedBy === this.players[this.currentPlayer].id && (type === 'buy' ? p.houses < 4 : p.houses > 0))[0] ? this.map.filter(p => this.map.filter(m => m.color === p.color).length === this.map.filter(m => m.color === p.color && m.ownedBy === this.players[this.currentPlayer].id).length && p.ownedBy === this.players[this.currentPlayer].id && (type === 'buy' ? p.houses < 4 : p.houses > 0)).map(e => e.name)[selection] : 'None yet'
                         }
                     ]
                 }
             });
         }
-        this.reactionAddHousing = (mes, emoji, user) => {
-
+        this.addAllReactionsHousing1 = () => {
+            this.message.addReaction('❌').then(() => this.message.addReaction('⬇').then(() => this.message.addReaction('⬆').then(() => this.message.addReaction('⏺'))));
         }
+        this.message.removeReactions().then(() => this.addAllReactionsHousing());
+        this.reactionAddHousing = (mes, emoji, user) => {
+            let reactor = mes.channel.guild.members.get(user).user;
+            if (this.players[this.currentPlayer].id === reactor.id && !reactor.bot) {
+                switch(emoji.name) {
+                    case '🏡':
+                        type = 'buy';
+                        submenu = true;
+                        this.editTheMessageHousing();
+                        this.message.removeReactions().then(() => this.addAllReactionsHousing1());
+                    break;
+                    case '🏚':
+                        type = 'sell';
+                        submenu = true;
+                        this.editTheMessageHousing();
+                        this.message.removeReactions().then(() => this.addAllReactionsHousing1());
+                    break;
+                    case '⬇':
+                        if (submenu) {
+                            if (++selection === this.map.filter(p => this.map.filter(m => m.color === p.color).length === this.map.filter(m => m.color === p.color && m.ownedBy === this.players[this.currentPlayer].id).length && p.ownedBy === this.players[this.currentPlayer].id && (type === 'buy' ? p.houses < 4 : p.houses > 0)).length) selection = 0;
+                            this.editTheMessageHousing();
+                        }
+                        break;
+                    case '⬆':
+                        if (submenu) {
+                            if (--selection === -1) selection = this.map.filter(p => this.map.filter(m => m.color === p.color).length === this.map.filter(m => m.color === p.color && m.ownedBy === this.players[this.currentPlayer].id).length && p.ownedBy === this.players[this.currentPlayer].id && (type === 'buy' ? p.houses < 4 : p.houses > 0)).length - 1;
+                            this.editTheMessageHousing();
+                        }
+                        break;
+                    case '⏺':
+                        if (type === 'buy') {
+                            this.players[this.currentPlayer].money -= housePricing[this.map.filter(p => this.map.filter(m => m.color === p.color).length === this.map.filter(m => m.color === p.color && m.ownedBy === this.players[this.currentPlayer].id).length && p.ownedBy === this.players[this.currentPlayer].id && (type === 'buy' ? p.houses < 4 : p.houses > 0))[selection].color];
+                        }else  {
+                            this.players[this.currentPlayer].money += housePricing[this.map.filter(p => this.map.filter(m => m.color === p.color).length === this.map.filter(m => m.color === p.color && m.ownedBy === this.players[this.currentPlayer].id).length && p.ownedBy === this.players[this.currentPlayer].id && (type === 'buy' ? p.houses < 4 : p.houses > 0))[selection].color] / 2;
+                        }
+                        this.message.removeReactions().then(() => this.addAllReactionsHousing());
+                        this.message.edit({
+                            embed: {
+                                title: 'Monopoly',
+                                color: parseInt('36393E', 16),
+                                description: 'Buying and Selling Houses and Hotels\nTo view all your properties that are eligible for building houses and hotels on, react with the 🏡 emoji.\nTo view already built houses and hotels, react with the 🏚 emoji.'
+                            }
+                        });
+                        submenu = false;
+                        break;
+                    case '❌':
+                        if (submenu) {
+                            submenu = false;
+                            this.message.edit({
+                                embed: {
+                                    title: 'Monopoly',
+                                    color: parseInt('36393E', 16),
+                                    description: 'Buying and Selling Houses and Hotels\nTo view all your properties that are eligible for building houses and hotels on, react with the 🏡 emoji.\nTo view already built houses and hotels, react with the 🏚 emoji.'
+                                }
+                            });
+                            this.message.removeReactions().then(() => this.addAllReactionsHousing());
+                        }else {
+                            this.client.off('messageReactionAdd', this.reactionAddHousing);
+                            this.message.removeReactions().then(() => this.defaultReactions());
+                            this.returnToReadyState('Done managing houses/hotels!');
+                        }
+                        break;
+                }
+            }
+        }
+        this.client.on('messageReactionAdd', this.reactionAddHousing);
     }
 
     handleMortgaging(type) {
@@ -2341,6 +2420,8 @@ const multiplier = 1.353;
 const beginning = 1500;
 module.exports = {
     _UserStats: UserStats,
+
+    games: [],
 
     giveXP: (userID, earned, client) => {
         return new Promise((resolve, reject) => {
