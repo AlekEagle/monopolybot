@@ -36,7 +36,7 @@ function nextShard() {
             prefixes.managePrefixes({action: 'refresh', client}).then(prefixes => {
                 console.log(`Loaded ${prefixes.length} guild prefix(es).`);
             });
-            prefixes.on('newPrefix', (id, prefix) => clilent.registerGuildPrefix(id, prefix));
+            prefixes.on('newPrefix', (id, prefix) => client.registerGuildPrefix(id, prefix));
             prefixes.on('removePrefix', id => delete client.guildPrefixes[id]);
             prefixes.on('updatePrefix', (id, prefix) => client.guildPrefixes[id] = prefix);
             shards.connectShard(client.options.firstShardID, client);
