@@ -2345,7 +2345,7 @@ class Game {
                         description: 'to interact with the game, use reactions on the original message, here\'s some below.',
                         fields: [{
                                 name: 'BIG FAT NOTE',
-                                value: 'BRUH THIS BOT IS IN DEVELOPMENT AND COULD FAIL AT ANYTIME, IF THE BOT STOPS RESPONDING, IT MAY BE A SIGN THAT THE BOT HAS CRASHED AND YOU MAY NEED TO RESTART THE GAME YOU WERE PLAYING'
+                                value: 'A FULL REWRITE OF THE CODE IS HAPPENING SOON PLEASE STAY TUNED (THIS WILL FIX A LOT OF STABILITY ISSUES)'
                             },
                             {
                                 name: 'Leaving a Game',

@@ -27,7 +27,7 @@ function nextShard() {
         maxShards: nums.shardCount,
         getAllUsers: true
     }, {
-        description: 'This bot was made in one week for Discord Hack Week. **(NOT OFFICIAL)**',
+        description: 'A FULL REWRITE OF THE CODE IS HAPPENING SOON PLEASE STAY TUNED',
         owner: 'AlekEagle#0001',
         prefix: env.DEBUG ? 'Alexa, ' : 'm!'
     });
@@ -113,6 +113,7 @@ function nextShard() {
         var cmdFile = require(`./cmds/${c}`);
         stats.initializeCommand(cmdFile.name);
         client.registerCommand(cmdFile.name, (msg, args) => {
+            stats.updateUses(cmdFile.name);
             if (!manager.gblacklist.users.includes(msg.author.id)) {
                 cmdFile.exec(client, msg, args);
             }else {

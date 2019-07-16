@@ -30,11 +30,6 @@ module.exports = {
                                 inline: true
                             },
                             {
-                                name: 'Auto responses answered',
-                                value: nums.responses,
-                                inline: true
-                            },
-                            {
                                 name: 'Server count',
                                 value: guilds,
                                 inline: true
@@ -77,7 +72,7 @@ module.exports = {
     },
 
     options: {
-        description: 'shows basic info about dad bot!',
+        description: 'shows basic info about MonopolyBot!',
         fullDescription: 'There is absloutely nothing else about info.',
         guildOnly: true
     }
