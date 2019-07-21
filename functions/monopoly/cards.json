@@ -1,0 +1,130 @@
+{
+    "communityChest": [{
+        "name": "Get Out of Jail Free",
+        "money": 0,
+        "special": "nojail"
+    }, {
+        "name": "Grand Opera Opening, Each Player Pays You $50",
+        "money": -50,
+        "special": "perplayer"
+    }, {
+        "name": "Go to Jail, Directly to Jail",
+        "money": 0,
+        "special": "tojail"
+    }, {
+        "name": "Income Tax Refund, Recieve $20",
+        "money": 20,
+        "special": null
+    }, {
+        "name": "Advance to GO",
+        "money": 0,
+        "special": "togo"
+    }, {
+        "name": "Life Insurance Matures, Recieve $200",
+        "money": 200,
+        "special": null
+    }, {
+        "name": "Doctor\"s fee, Pay $50",
+        "money": -50,
+        "special": null
+    }, {
+        "name": "Pay Hospital Bills, Pay $100",
+        "money": -100,
+        "special": null
+    }, {
+        "name": "You are accessed for street repairs, Pay $40 for each house and $115 for each hotel",
+        "money": 0,
+        "special": "40house115hotel"
+    }, {
+        "name": "You have won 2nd prize in a beauty contest, Recieve $10",
+        "money": 10,
+        "special": null
+    }, {
+        "name": "Bank error in your favor, Recieve $200",
+        "money": 200,
+        "special": null
+    }, {
+        "name": "You inherit $100",
+        "money": 100,
+        "special": null
+    }, {
+        "name": "Recieve for services, Recieve $25",
+        "money": 25,
+        "special": null
+    }, {
+        "name": "Xmas fund matures, Recieve $100",
+        "money": 100,
+        "special": null
+    }, {
+        "name": "Pay school tax, Pay $150",
+        "money": -150,
+        "special": null
+    }, {
+        "name": "Sale of stock, Recieve $45",
+        "money": 45,
+        "special": null
+    }],
+    "chance": [
+        {
+        "name": "Go to Jail, Directly to Jail",
+        "money": 0,
+        "special": "tojail"
+    }, {
+        "name": "Get Out of Jail Free",
+        "money": 0,
+        "special": "nojail"
+    }, {
+        "name": "Make general repairs on all your property, Pay $25 for each house and $100 for each hotel",
+        "money": 0,
+        "special": "25house100hotel"
+    }, {
+        "name": "Pay poor tax, Pay $15",
+        "money": -15,
+        "special": null
+    }, {
+        "name": "You have been elected Chairman of the Board, Pay Each Player $50",
+        "money": 50,
+        "special": "perplayer"
+    }, {
+        "name": "Advance to GO",
+        "money": 0,
+        "special": "togo"
+    }, {
+        "name": "Your building and loan matures, Recieve $150",
+        "money": 150,
+        "special": null
+    }, {
+        "name": "Bank pays you, Recieve $50",
+        "money": 50,
+        "special": null
+    }, {
+        "name": "Go back 3 spaces",
+        "money": 0,
+        "special": "back3"
+    }, {
+        "name": "Advance to Illinois Avenue",
+        "money": 0,
+        "special": "toillinois"
+    }, {
+        "name": "Take a walk on the board walk",
+        "money": 0,
+        "special": "toboardwalk"
+    }, {
+        "name": "Advance to nearest railroad, and pay owner twice the rental normally owed, otherwise you can buy it",
+        "money": 0,
+        "special": "tonearestrailroadtwiceowed"
+    }, {
+        "name": "Advance to nearest utility and, if unowned you may purchase it, otherwise roll dice again and pay 10 times what you rolled from the dice",
+        "money": 0,
+        "special": "nearestutilityx10"
+    }, {
+        "name": "Take a ride on the Reading Railroad",
+        "money": 0,
+        "special": "toreading"
+    }, {
+        "name": "Advance to St. Charles Place",
+        "money": 0,
+        "special": "tocharles"
+    }
+    ]
+}
