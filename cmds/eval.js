@@ -11,7 +11,7 @@ let genRanString = require('../functions/genRanString');
 let stats = require('../functions/commandStatistics');
 let shards = require('../functions/shardManager');
 let memory = require('../functions/memoryUsage');
-let logic = require('../functions/gameLogic');
+let logic = require('../functions/monopoly/mainbrain');
 let fs = require('fs');
 
 const Logger = require('../functions/logger');
