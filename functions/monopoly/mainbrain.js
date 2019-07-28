@@ -85,7 +85,7 @@ class Game {
                                     embed: {
                                         title: 'Monopoly is best played with two people!',
                                         color: parseInt('ffff00', 16),
-                                        description: 'Right now, there is no AI for single player mode, if you want to see something like that, please support the creator on patreon https://alekeagle.tk/patreon'
+                                        description: 'Right now, there is no AI for single player mode, if you want to see something like that, please support the creator on patreon https://alekeagle.com/patreon'
                                     }
                                 }).then(() => {
                                     setTimeout(() => {
@@ -157,7 +157,7 @@ class Game {
                     embed: {
                         color: parseInt('00ff00', 16),
                         title: 'You joined the game!',
-                        description: 'quick start instructions can be found here: [MonopolyBot Instructions](https://alekeagle.tk/monopolybot/instructions)'
+                        description: 'quick start instructions can be found here: [MonopolyBot Instructions](https://alekeagle.com/monopolybot/instructions)'
                     }
                 });
             }).catch(err => {
@@ -568,7 +568,7 @@ class Game {
                 color: parseInt('36393E', 16),
                 description: `You landed on ${property.name}, which is not owned. Would you like to purchase it for $${property.price}? Not purchasing it will begin an auction for it.`,
                 thumbnail: {
-                    url: `https://alekeagle.tk/assets/images/${property.color}.png`
+                    url: `https://alekeagle.com/assets/images/${property.color}.png`
                 },
                 fields: [{
                         name: `${this.players[this.currentPlayer].username}#${this.players[this.currentPlayer].discriminator}'s Money`,
