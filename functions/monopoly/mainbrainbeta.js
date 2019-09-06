@@ -4,14 +4,16 @@ const random = require('../randomNumFromRange');
 const map = require('./map.json');
 const Logger = require('../logger');
 const console = new Logger();
+let games = [];
 const EventEmitter = require('events');
 const {
     communityChest,
     chance
 } = require('./cards.json');
 
-class Game extends EventEmitter {
+class GameBeta extends EventEmitter {
     constructor(client, channel, owner) {
+        super();
         //initialize all variables
         this.map = map;
         this.client = client;
@@ -22,6 +24,7 @@ class Game extends EventEmitter {
         this.active = false;
         this.moving = false;
         this.otherAction = false;
+        games.push(this.channel);
         //add the person who started the game to the players list
         this.addPlayer(owner).then(() => {
             //create beginning message
@@ -159,7 +162,7 @@ class Game extends EventEmitter {
                 }
                 //pushes the new user to the players list
                 this.players.push(newPlayer);
-                player.getDMChannel().then(chnl => {
+                user.getDMChannel().then(chnl => {
                     chnl.createMessage({
                         embed: {
                             color: 0x00FF00,
@@ -277,200 +280,197 @@ class Game extends EventEmitter {
     }
 
     start() {
-        return new Promise((resolve, reject) => {
-            this.active = true;
-            this.client.off('messageReactionAdd', this.reactionAddStart);
-            this.message.removeReactions().then(() => this.react().catch(err => reject(err)));
-            this.message.edit({
-                content: `<@${this.players[0].id}>`,
-                embed: {
-                    title: 'Monopoly',
-                    color: 0x36393E,
-                    description: 'And we begin! Everyone starts at GO with $1500',
-                    fields: [{
-                        name: 'Players',
-                        value: this.players.map((v, i, a) => `${i}. <@${v.id}>`).join('\n')
-                    },
-                    {
-                        name: `${this.players[0].username}#${this.players[0].discriminator}'s Money`,
-                        value: this.players[0].money
-                    }
-                    ]
-
+        this.active = true;
+        this.client.off('messageReactionAdd', this.reactionAddStart);
+        this.message.removeReactions().then(() => this.react().catch(err => reject(err)));
+        this.message.edit({
+            content: `<@${this.players[0].id}>`,
+            embed: {
+                title: 'Monopoly',
+                color: 0x36393E,
+                description: 'And we begin! Everyone starts at GO with $1500',
+                fields: [{
+                    name: 'Players',
+                    value: this.players.map((v, i, a) => `${i}. <@${v.id}>`).join('\n')
+                },
+                {
+                    name: `${this.players[0].username}#${this.players[0].discriminator}'s Money`,
+                    value: this.players[0].money
                 }
-            }).catch(err => reject(err));
-            this.reactionAddGame = (mes, emoji, user) => {
-                let reactor = mes.channel.guild.members.get(user).user;
-                if (this.message.id === mes.id && !reactor.bot) {
-                    switch (emoji.name) {
-                        case '🔚':
-                            if (this.players.filter(p => p.id === reactor.id)[0]) {
-                                this.removePlayer(reactor).then(() => this.message.removeReaction('🔚', reactor.id).catch(err => reject(err))).catch(err => reject(err));
-                            } else reactor.getDMChannel().then(chnl => {
-                                chnl.createMessage({
-                                    embed: {
-                                        color: 0xFF0000,
-                                        title: 'Error',
-                                        description: 'You can\'t leave a game that you\'re not in!'
-                                    }
-                                }).catch(err => reject(err));
+                ]
+
+            }
+        }).catch(err => reject(err));
+        this.reactionAddGame = (mes, emoji, user) => {
+            let reactor = mes.channel.guild.members.get(user).user;
+            if (this.message.id === mes.id && !reactor.bot) {
+                switch (emoji.name) {
+                    case '🔚':
+                        if (this.players.filter(p => p.id === reactor.id)[0]) {
+                            this.removePlayer(reactor).then(() => this.message.removeReaction('🔚', reactor.id).catch(err => reject(err))).catch(err => reject(err));
+                        } else reactor.getDMChannel().then(chnl => {
+                            chnl.createMessage({
+                                embed: {
+                                    color: 0xFF0000,
+                                    title: 'Error',
+                                    description: 'You can\'t leave a game that you\'re not in!'
+                                }
                             }).catch(err => reject(err));
-                            break;
-                        case '🎲':
-                            if (this.players[0].id === reactor.id && !this.otherAction && !this.moving) {
-                                if (!this.players[0].debtMode) {
-                                    this.movePlayer().then(string => this.returnToReadyState(string)).catch(err => reject(err));
-                                } else {
-                                    let messageDescription = this.channel.messages.get(this.message.id).embeds[0].description;
-                                    this.message.edit({
-                                        embed: {
-                                            title: 'Monopoly',
-                                            color: 0xFFFF00,
-                                            description: 'You can\'t move when you are in debt!'
-                                        }
-                                    }).then(() => {
-                                        setTimeout(() => {
-                                            this.message.edit({
-                                                embed: {
-                                                    title: 'Monopoly',
-                                                    color: 0x36393E,
-                                                    description: messageDescription,
-                                                    fields: [{
-                                                        name: 'Players',
-                                                        value: this.players.map((v, i, a) => `${i}. <@${v.id}>`).join('\n')
-                                                    },
-                                                    {
-                                                        name: `${this.players[0].username}#${this.players[0].discriminator}'s Money`,
-                                                        value: this.players[0].money
-                                                    }
-                                                    ]
+                        }).catch(err => reject(err));
+                        break;
+                    case '🎲':
+                        if (this.players[0].id === reactor.id && !this.otherAction && !this.moving) {
+                            if (!this.players[0].debtMode) {
+                                this.movePlayer().then(string => this.returnToReadyState(string)).catch(err => reject(err));
+                            } else {
+                                let messageDescription = this.channel.messages.get(this.message.id).embeds[0].description;
+                                this.message.edit({
+                                    embed: {
+                                        title: 'Monopoly',
+                                        color: 0xFFFF00,
+                                        description: 'You can\'t move when you are in debt!'
+                                    }
+                                }).then(() => {
+                                    setTimeout(() => {
+                                        this.message.edit({
+                                            embed: {
+                                                title: 'Monopoly',
+                                                color: 0x36393E,
+                                                description: messageDescription,
+                                                fields: [{
+                                                    name: 'Players',
+                                                    value: this.players.map((v, i, a) => `${i}. <@${v.id}>`).join('\n')
+                                                },
+                                                {
+                                                    name: `${this.players[0].username}#${this.players[0].discriminator}'s Money`,
+                                                    value: this.players[0].money
                                                 }
-                                            }).catch(err => reject(err));
-                                        }, 8000);
-                                    }).catch(err => reject(err));
-                                }
-                            }
-                            break;
-                        case '📧':
-                            if (this.players[0].id === reactor.id && !this.otherAction && !this.moving) {
-                                this.handleTrading().catch(err => reject(err));
-                            }
-                            break;
-                        case 'bankrupt':
-                            if (this.players[0].id === reactor.id && !this.otherAction && !this.moving) {
-                                if (!this.players[0].debtMode) {
-                                    let messageDescription = this.channel.messages.get(this.message.id).embeds[0].description;
-                                    this.message.edit({
-                                        embed: {
-                                            title: 'Monopoly',
-                                            color: parseInt('ffff00', 16),
-                                            description: 'You can\'t file for bankruptcy if you don\'t need to!'
-                                        }
-                                    }).then(() => {
-                                        setTimeout(() => {
-                                            this.message.edit({
-                                                embed: {
-                                                    title: 'Monopoly',
-                                                    color: 0x36393E,
-                                                    description: messageDescription,
-                                                    fields: [{
-                                                        name: 'Players',
-                                                        value: this.players.map((v, i, a) => `${i}. <@${v.id}>`).join('\n')
-                                                    },
-                                                    {
-                                                        name: `${this.players[0].username}#${this.players[0].discriminator}'s Money`,
-                                                        value: this.players[0].money
-                                                    }
-                                                    ]
-                                                }
-                                            });
-                                        }, 8000);
-                                    });
-                                } else {
-                                    this.handleAuction(this.map.filter(p => p.ownedBy === this.players[0].id), 'bank');
-                                }
-                            }
-                            break;
-                        case 'ℹ':
-                            if (this.players.filter(p => p.id === reactor.id)[0]) {
-                                let thisPlayer = this.players.filter(p => p.id === reactor.id)[0]
-                                reactor.getDMChannel().then(chnl => {
-                                    chnl.createMessage({
-                                        embed: {
-                                            color: parseInt('00ff00', 16),
-                                            title: 'Monopoly Player Stats',
-                                            fields: [{
-                                                name: 'Money',
-                                                value: thisPlayer.money,
-                                                inline: true
-                                            },
-                                            {
-                                                name: 'Properties Owned',
-                                                value: this.map.filter(m => m.ownedBy === thisPlayer.id).length.toString(),
-                                                inline: true
-                                            },
-                                            {
-                                                name: 'Properties Mortgaged',
-                                                value: this.map.filter(m => m.ownedBy === thisPlayer.id && m.mortgaged).length.toString(),
-                                                inline: true
-                                            },
-                                            {
-                                                name: 'List of Properties Owned',
-                                                value: this.map.filter(m => m.ownedBy === thisPlayer.id).map(m => m.name).join('\n') === '' ? 'None' : this.map.filter(m => m.ownedBy === thisPlayer.id).map(m => m.name).join('\n')
-                                            },
-                                            {
-                                                name: 'List of Properties Mortgaged',
-                                                value: this.map.filter(m => m.ownedBy === thisPlayer.id && m.mortgaged).map(m => m.name).join('\n') === '' ? 'None' : this.map.filter(m => m.ownedBy === thisPlayer.id && m.mortgaged).map(m => m.name).join('\n')
+                                                ]
                                             }
-                                            ]
-                                        }
-                                    });
+                                        }).catch(err => reject(err));
+                                    }, 8000);
+                                }).catch(err => reject(err));
+                            }
+                        }
+                        break;
+                    case '📧':
+                        if (this.players[0].id === reactor.id && !this.otherAction && !this.moving) {
+                            this.handleTrading().then(string => this.returnToReadyState(string)).catch(err => reject(err));
+                        }
+                        break;
+                    case 'bankrupt':
+                        if (this.players[0].id === reactor.id && !this.otherAction && !this.moving) {
+                            if (!this.players[0].debtMode) {
+                                let messageDescription = this.channel.messages.get(this.message.id).embeds[0].description;
+                                this.message.edit({
+                                    embed: {
+                                        title: 'Monopoly',
+                                        color: parseInt('ffff00', 16),
+                                        description: 'You can\'t file for bankruptcy if you don\'t need to!'
+                                    }
+                                }).then(() => {
+                                    setTimeout(() => {
+                                        this.message.edit({
+                                            embed: {
+                                                title: 'Monopoly',
+                                                color: 0x36393E,
+                                                description: messageDescription,
+                                                fields: [{
+                                                    name: 'Players',
+                                                    value: this.players.map((v, i, a) => `${i}. <@${v.id}>`).join('\n')
+                                                },
+                                                {
+                                                    name: `${this.players[0].username}#${this.players[0].discriminator}'s Money`,
+                                                    value: this.players[0].money
+                                                }
+                                                ]
+                                            }
+                                        });
+                                    }, 8000);
                                 });
                             } else {
-                                reactor.getDMChannel().then(chnl => {
-                                    chnl.createMessage({
-                                        embed: {
-                                            color: parseInt('ff0000', 16),
-                                            title: 'Error',
-                                            description: 'You can\'t get player stats for yourself if you aren\'t in the game!'
+                                this.handleAuction(this.map.filter(p => p.ownedBy === this.players[0].id), 'bank');
+                            }
+                        }
+                        break;
+                    case 'ℹ':
+                        if (this.players.filter(p => p.id === reactor.id)[0]) {
+                            let thisPlayer = this.players.filter(p => p.id === reactor.id)[0]
+                            reactor.getDMChannel().then(chnl => {
+                                chnl.createMessage({
+                                    embed: {
+                                        color: parseInt('00ff00', 16),
+                                        title: 'Monopoly Player Stats',
+                                        fields: [{
+                                            name: 'Money',
+                                            value: thisPlayer.money,
+                                            inline: true
+                                        },
+                                        {
+                                            name: 'Properties Owned',
+                                            value: this.map.filter(m => m.ownedBy === thisPlayer.id).length.toString(),
+                                            inline: true
+                                        },
+                                        {
+                                            name: 'Properties Mortgaged',
+                                            value: this.map.filter(m => m.ownedBy === thisPlayer.id && m.mortgaged).length.toString(),
+                                            inline: true
+                                        },
+                                        {
+                                            name: 'List of Properties Owned',
+                                            value: this.map.filter(m => m.ownedBy === thisPlayer.id).map(m => m.name).join('\n') === '' ? 'None' : this.map.filter(m => m.ownedBy === thisPlayer.id).map(m => m.name).join('\n')
+                                        },
+                                        {
+                                            name: 'List of Properties Mortgaged',
+                                            value: this.map.filter(m => m.ownedBy === thisPlayer.id && m.mortgaged).map(m => m.name).join('\n') === '' ? 'None' : this.map.filter(m => m.ownedBy === thisPlayer.id && m.mortgaged).map(m => m.name).join('\n')
                                         }
-                                    });
-                                });
-                            }
-                            break;
-                        case '💳':
-                            if (this.players[0].id === reactor.id && !this.otherAction && !this.moving) {
-                                this.handleMortgaging('menu');
-                            }
-                            break;
-                        case '🏦':
-                            if (this.players[0].id === reactor.id && !this.otherAction && !this.moving) {
-                                this.handleBuyingSellingHousing();
-                            }
-                            break;
-                        case '💸':
-                            if (this.players[0].id === reactor.id && !this.otherAction && !this.moving) {
-                                if (this.players[0].debtMode) {
-                                    if (this.players[0].money > this.players[0].inDebtBy) {
-                                        if (this.players[0].inDebtTo === 'bank') {
-                                            this.players[0].money -= this.players[0].inDebtBy;
-                                            this.players[0].inDebtTo = null;
-                                            this.players[0].inDebtBy = 0;
-                                            this.players[0].debtMode = false;
-                                            this.advancePlayer().then(() => resolve('{{previoususer}} just paid off his debt to the bank.\n it is now {{currentuser}}\'s turn!'));
-                                        }
-                                    }else {
-
+                                        ]
                                     }
+                                });
+                            });
+                        } else {
+                            reactor.getDMChannel().then(chnl => {
+                                chnl.createMessage({
+                                    embed: {
+                                        color: parseInt('ff0000', 16),
+                                        title: 'Error',
+                                        description: 'You can\'t get player stats for yourself if you aren\'t in the game!'
+                                    }
+                                });
+                            });
+                        }
+                        break;
+                    case '💳':
+                        if (this.players[0].id === reactor.id && !this.otherAction && !this.moving) {
+                            this.handleMortgaging('menu');
+                        }
+                        break;
+                    case '🏦':
+                        if (this.players[0].id === reactor.id && !this.otherAction && !this.moving) {
+                            this.handleBuyingSellingHousing();
+                        }
+                        break;
+                    case '💸':
+                        if (this.players[0].id === reactor.id && !this.otherAction && !this.moving) {
+                            if (this.players[0].debtMode) {
+                                if (this.players[0].money > this.players[0].inDebtBy) {
+                                    if (this.players[0].inDebtTo === 'bank') {
+                                        this.players[0].money -= this.players[0].inDebtBy;
+                                        this.players[0].inDebtTo = null;
+                                        this.players[0].inDebtBy = 0;
+                                        this.players[0].debtMode = false;
+                                        this.advancePlayer().then(() => resolve('{{previoususer}} just paid off his debt to the bank.\n it is now {{currentuser}}\'s turn!'));
+                                    }
+                                }else {
+
                                 }
                             }
-                    }
-                    this.message.removeReaction(emoji.name === 'bankrupt' ? `${emoji.name}:${emoji.id}` : emoji.name, reactor.id);
+                        }
                 }
+                this.message.removeReaction(emoji.name === 'bankrupt' ? `${emoji.name}:${emoji.id}` : emoji.name, reactor.id);
             }
-            this.client.on('messageReactionAdd', this.reactionAddGame);
-            resolve();
-        });
+        }
+        this.client.on('messageReactionAdd', this.reactionAddGame);
     }
 
     end() {
@@ -648,7 +648,7 @@ class Game extends EventEmitter {
 }
 
 module.exports = {
-    games: [],
+    games,
 
-    Game
+    Game: GameBeta
 }

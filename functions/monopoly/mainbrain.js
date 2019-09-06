@@ -4,10 +4,12 @@ const random = require('../randomNumFromRange');
 const map = require('./map.json');
 const Logger = require('../logger');
 const console = new Logger();
+const EventEmitter = require('events');
 const { communityChest, chance } = require('./cards.json');
 
-class Game {
+class Game extends EventEmitter {
     constructor(client, channel, owner) {
+        super();
         this.map = map;
         this.previousPlayer = -1;
         this.currentPlayer = 0;
@@ -21,7 +23,6 @@ class Game {
         this.moving = false;
         this.otherAction = false;
         this.addPlayer(owner);
-        module.exports.games.push(this.channel);
         channel.createMessage({
             embed: {
                 title: 'Let\'s play Monopoly!',
@@ -402,8 +403,7 @@ class Game {
         this.server = null;
         this.players = null;
         this.active = null;
-        delete module.exports.games[module.exports.games.indexOf(this.channel)] 
-        return null;
+        this.emit('end');
     }
 
     movePlayer(moveTo) {
